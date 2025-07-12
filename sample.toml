@@ -17,7 +17,7 @@
 #   is used as a searcher another card in deck
 #   .e.g: ROTA 1 Raye
 # - These following draw cards are supported calculating consistency:
-#   - Desires
+#   - Desires (This one is broken rn, may fix it once I got some time...)
 #   - Prosperity
 #   - Extravagance
 #   - Upstart (For Chicken Game you can add it as another Upstart)
