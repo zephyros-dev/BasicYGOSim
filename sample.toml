@@ -1,0 +1,144 @@
+# The file format is toml, you can use # before each line for comment, or quick
+# trial of each entry
+[deck]
+# - The main field is for the list of cards that are used in your deck
+# - The format of each entry is as following:
+#   <card-name> <amount> <group>...
+# - card name cannot use space
+# - .e.g: Ash 2 Fodder NE
+# - In this case Ash is card name, 2 is the amount in the deck
+# - Fodder means it belongs to Fodder group (which mean it can be used
+#   as tribute fodder for ritual summon. 
+# - You can use whichever group you need for your deck combo.
+#   .e.g: Tri-Brigade Kerass requires discard a tri-type, 
+#   so you can use a tri-type group for it
+# - NE means non-engine group
+# - You can also write other card name into the group, in case the card
+#   is used as a searcher another card in deck
+#   .e.g: ROTA 1 Raye
+# - These following draw cards are supported calculating consistency:
+#   - Desires
+#   - Prosperity
+#   - Extravagance
+#   - Upstart (For Chicken Game you can add it as another Upstart)
+#   - Duality
+# - There's a special groups called NE (none-engine). You can add cards
+#   that are non-engine to this group to see it amounts being printed
+#   at the results. I used this to check how many non-engine slots can
+#   I afford without losing consistency
+main = [
+    "Chef 3",
+    "Pois 2 NS",
+    "Angry 1",
+    "Bael 1",
+    "Bala 1",
+    "Foie 1",
+    "Poeltis 1",
+    "Bueri 1",
+    "Restaurant 2",
+    "Recipe-book 1",
+    "Nadir 3",
+
+    "Menu 3",
+    "Prep 3 Angry",
+    "Fish-recipe 1 Ritual-spell",
+    "Meat-recipe 1 Ritual-spell",
+    "Special-recipe 1",
+    "Diviner 2 NS",
+    "Raven 1",
+    "Maximus 1 Fodder",
+
+    "Ash 2 Fodder NE",
+    "Nib 1 Fodder NE",
+    "Gamma 1 NE",
+    "Driver 1 Fodder NE",
+    "Called-by 1 NE",
+    "Talent 1 NE",
+    "Cross-out 1 NE",
+    "Instant-Fusion 1 NE",
+    "Droll 1 NE",
+    "Crow 1 NE",
+
+    "Concours 3",
+    # "Pre-prep 1",
+]
+
+# These cards are replaced by Blank card when side decking, 
+# this is to check for consistency after siding out engine cards.
+# This field is optional
+side_replace = ["Diviner 2", "Raven 1"]
+
+# Hand counts for main deck and side decking, 
+# for blind 2nd deck you can use [6, 6]
+# This field is optional
+main_side_hand_amount = [5, 6]
+
+[hand]
+# - List your acceptable combinations of cards in hand in the `all` field
+# - TODO: If I have time I may create a different hands category and calculate
+#   probability for all of them .e.g: anti-droll category which has hand that can
+#   play through droll, or make a playable category and separate them from great hand
+# - Each entry represents the hand combination, and 
+#   has the following syntax:
+#   <amount> <+ or -> <card-name> <AND/OR> ...
+# - .e.g: 2 + A AND 1 - B AND 0 = C
+#    means `2 or more of A, 1 or fewer of B, exactly 0 of C`
+# - if the amount is 1 or more, you can skip it.
+#   .e.g: `Chef AND Pois` is equivalent to `1 + Chef AND 1 + Pois`
+all = [
+    "NS AND Maximus",
+    "Nadir AND 0 = Maximus",
+    "Nadir AND Raven AND Maximus",
+
+    "Chef AND Pois",
+    "Chef AND Menu",
+    "Chef AND Diviner",
+    "Chef AND Angry",
+    "Chef AND Restaurant AND Fodder",
+    "Pois AND Menu",
+    "Pois AND Angry",
+    "Pois AND Restaurant",
+    "Menu AND Diviner",
+    "Menu AND Angry",
+    "Menu AND Restaurant AND Fodder",
+
+    "Diviner AND Angry",
+    "Diviner AND Restaurant",
+    "Angry AND Restaurant AND Fodder",
+
+    "Pois AND Bueri",
+    "Pois AND Ritual-spell",
+    "Diviner AND Bueri",
+    "Diviner AND Ritual-spell",
+
+    "Fodder AND Menu",
+    "Diviner AND Raven",
+
+    "Concours AND Chef",
+    "Concours AND Menu",
+    "Concours AND Diviner",
+    "Concours AND Angry",
+    "Concours AND Restaurant",
+    "Concours AND Bueri",
+    "Concours AND Ritual-spell",
+
+    # "Pre-prep AND Pois AND 0 = Bueri AND 0 = Fish-recipe",
+    # "Pre-prep AND Diviner AND 0 = Bueri AND 0 = Fish-recipe",
+    # "Pre-prep AND Concours AND 0 = Bueri AND 0 = Fish-recipe",
+    # "Pre-prep AND Angry AND 0 = Bueri AND 0 = Fish-recipe",
+    # "Pre-prep AND Fodder AND 0 = Bueri AND 0 = Fish-recipe",
+]
+
+# This field is used with combination generator.
+# Check the README for detail
+# This field is optional
+[combination]
+combination = [
+    "Chef",
+    "Pois",
+    "Menu",
+    "Concours",
+    "Diviner",
+    "Angry",
+    "Restaurant",
+]
