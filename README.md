@@ -23,6 +23,9 @@ Yu-Gi-Oh! probability estimator for deck consistency
 3. The results should look like this:
 
    ```bash
+   None-engine card ratio is: 11/44
+   Probability of success main deck with hand of 5: 83.98%
+   Probability of success side deck with hand of 6: 86.83%
    ```
 
 ### Combination generator
@@ -34,6 +37,32 @@ This helper function is for finding a list of combination from 2 card combo
 
    ```bash
    uv run main.py combination --file sample.toml
+   ```
+
+3. The results should contains all the combinations of 2 card combo that you want
+
+   ```bash
+   Chef AND Pois
+   Chef AND Menu
+   Chef AND Concours
+   Chef AND Diviner
+   Chef AND Angry
+   Chef AND Restaurant
+   Pois AND Menu
+   Pois AND Concours
+   Pois AND Diviner
+   Pois AND Angry
+   Pois AND Restaurant
+   Menu AND Concours
+   Menu AND Diviner
+   Menu AND Angry
+   Menu AND Restaurant
+   Concours AND Diviner
+   Concours AND Angry
+   Concours AND Restaurant
+   Diviner AND Angry
+   Diviner AND Restaurant
+   Angry AND Restaurant
    ```
 
 ### Updating the program

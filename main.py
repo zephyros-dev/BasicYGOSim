@@ -264,7 +264,9 @@ def probability_calculator(args):
                 hand[0], hand[1], possibilities, True, True, True, True, True
             ):
                 counter += 1
-        print(f"Probability of success {turn}: {counter / num_trials * 100:.2f}%")
+        print(
+            f"Probability of success {turn} with hand of {hand_size}: {counter / num_trials * 100:.2f}%"
+        )
 
 
 def combination_generator(args):
