@@ -1,0 +1,18 @@
+{
+  "[json]": {
+    "editor.defaultFormatter": "prettier.prettier-vscode"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
+  },
+  "[python]": {
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "always"
+    },
+    "editor.defaultFormatter": "charliermarsh.ruff"
+  },
+  "editor.codeActionsOnSave": {
+    "source.fixAll.sortJSON": "always"
+  },
+  "editor.formatOnSave": true
+}
