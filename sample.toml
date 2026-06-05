@@ -74,11 +74,10 @@ side_replace = ["Diviner 2", "Raven 1"]
 main_side_hand_amount = [5, 6]
 
 [hand]
-# - List your acceptable combinations of cards in hand in the `all` field
-# - TODO: If I have time I may create a different hands category and calculate
-#   probability for all of them .e.g: anti-droll category which has hand that can
-#   play through droll, or make a playable category and separate them from great hand
-# - Each entry represents the hand combination, and 
+# - List your acceptable combinations of cards in hand using named categories.
+# - Each key under [hand] is a category name (e.g. all, standard, anti-droll).
+# - Probabilities are shown per category, then an aggregate (any category matched).
+# - Each entry represents the hand combination, and
 #   has the following syntax:
 #   <amount> <+ or -> <card-name> <AND/OR> ...
 # - .e.g: 2 + A AND 1 - B AND 0 = C

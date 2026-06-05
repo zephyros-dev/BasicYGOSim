@@ -8,7 +8,7 @@ import tomllib
 
 
 def probability_calculator(args):
-    num_trials = 60000
+    num_trials = 100000
 
     with open(args.deck, "rb") as f:
         deck_file = tomllib.load(f)
@@ -216,37 +216,43 @@ def probability_calculator(args):
         num_extras += 2
     print(f"None-engine card ratio is: {ne_count}/{deck_count}")
 
-    possibilities = []
-    text_possibilities = deck_file["hand"]["all"]
-    for possibility in text_possibilities:
-        if len(possibility) == 0:
-            continue
-        conditions = []
-        text_conditions = possibility.split("AND")
-        for condition in text_conditions:
-            parts = condition.split()
-            if len(parts) == 3:
-                if parts[2] not in all_cats:
+    def parse_possibilities(text_possibilities, cat_name):
+        result = []
+        for possibility in text_possibilities:
+            if len(possibility) == 0:
+                continue
+            conditions = []
+            text_conditions = possibility.split("AND")
+            for condition in text_conditions:
+                parts = condition.split()
+                if len(parts) == 3:
+                    if parts[2] not in all_cats:
+                        print(
+                            f"[{cat_name}] Possibility: {possibility} contains unlisted card or category {parts[2]}"
+                        )
+                        sys.exit(0)
+                    if parts[1] not in ["-", "+", "="] or not parts[0].isdigit():
+                        print(f"[{cat_name}] Check formatting of line: {possibility}")
+                        sys.exit(0)
+                    conditions.append([parts[2], int(parts[0]), parts[1]])
+                elif len(parts) == 1:
+                    if parts[0] not in all_cats:
+                        print(
+                            f"[{cat_name}] Possibility: {possibility} contains unlisted card or category {parts[0]}"
+                        )
+                        sys.exit(0)
+                    conditions.append([parts[0], 1, "+"])
+                else:
                     print(
-                        f"Possibility: {possibility} contains unlisted card or category {parts[2]}"
+                        f"[{cat_name}] Check formatting of input_possibilities_here, line: {possibility}"
                     )
-                    sys.exit(0)
-                if parts[1] not in ["-", "+", "="] or not parts[0].isdigit():
-                    print(f"Check formatting of line: {possibility}")
-                    sys.exit(0)
-                conditions.append([parts[2], int(parts[0]), parts[1]])
-            elif len(parts) == 1:
-                if parts[0] not in all_cats:
-                    print(
-                        f"Possibility: {possibility} contains unlisted card or category {parts[0]}"
-                    )
-                    sys.exit(0)
-                conditions.append([parts[0], 1, "+"])
-            else:
-                print(
-                    f"Check formatting of input_possibilities_here, line: {possibility}"
-                )
-        possibilities.append(conditions)
+            result.append(conditions)
+        return result
+
+    categories = {
+        cat_name: parse_possibilities(text_possibilities, cat_name)
+        for cat_name, text_possibilities in deck_file["hand"].items()
+    }
 
     if "main_side_number" not in deck_file["deck"]:
         main_side_hand_amount = [5, 6]
@@ -257,16 +263,25 @@ def probability_calculator(args):
         [main_side_hand_amount[0], "main deck", deck_main],
         [main_side_hand_amount[1], "side deck", deck_side],
     ]:
-        counter = 0
+        cat_counters = {cat: 0 for cat in categories}
+        counter_aggregate = 0
         for i in range(0, num_trials):
             hand = get_hand(deck_list, hand_size, num_extras)
-            if is_one_valid_draw(
-                hand[0], hand[1], possibilities, True, True, True, True, True
-            ):
-                counter += 1
-        print(
-            f"Probability of success {turn} with hand of {hand_size}: {counter / num_trials * 100:.2f}%"
-        )
+            any_valid = False
+            for cat_name, possibilities in categories.items():
+                if is_one_valid_draw(
+                    hand[0], hand[1], possibilities, True, True, True, True, True
+                ):
+                    cat_counters[cat_name] += 1
+                    any_valid = True
+            if any_valid:
+                counter_aggregate += 1
+
+        print(f"\nHand of {hand_size} ({turn}):")
+        for cat_name, count in cat_counters.items():
+            print(f"  [{cat_name}]: {count / num_trials * 100:.2f}%")
+        if len(categories) > 1:
+            print(f"  [aggregate]: {counter_aggregate / num_trials * 100:.2f}%")
 
 
 def combination_generator(args):
