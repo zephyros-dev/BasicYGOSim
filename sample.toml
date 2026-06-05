@@ -50,12 +50,12 @@ main = [
 
     "Ash 2 Fodder NE",
     "Nib 1 Fodder NE",
-    "Gamma 1 NE",
+    "Gamma 1 NE anti-droll",
     "Driver 1 Fodder NE",
-    "Called-by 1 NE",
+    "Called-by 1 NE anti-droll",
     "Talent 1 NE",
     "Cross-out 1 NE",
-    "Instant-Fusion 1 NE",
+    "Instant-Fusion 1 NE anti-droll",
     "Droll 1 NE",
     "Crow 1 NE",
 
@@ -84,7 +84,7 @@ main_side_hand_amount = [5, 6]
 #    means `2 or more of A, 1 or fewer of B, exactly 0 of C`
 # - if the amount is 1 or more, you can skip it.
 #   .e.g: `Chef AND Pois` is equivalent to `1 + Chef AND 1 + Pois`
-all = [
+general = [
     "NS AND Maximus",
     "Nadir AND 0 = Maximus",
     "Nadir AND Raven AND Maximus",
@@ -127,6 +127,10 @@ all = [
     # "Pre-prep AND Angry AND 0 = Bueri AND 0 = Fish-recipe",
     # "Pre-prep AND Fodder AND 0 = Bueri AND 0 = Fish-recipe",
 ]
+
+# "ALL" is a special hand, it takes every single possible hand from other category, then add the combination you want
+# For example, you want to see which hand can play through droll by adding the combo + card that counter droll here
+droll = ["ALL AND Cross-out AND 0 = Droll", "ALL AND anti-droll"]
 
 # This field is used with combination generator.
 # Check the README for detail

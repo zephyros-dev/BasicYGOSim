@@ -202,9 +202,12 @@ def probability_calculator(args):
             if len(possibility) == 0:
                 continue
             conditions = []
+            has_all = False
             for condition in possibility.split("AND"):
                 parts = condition.split()
-                if len(parts) == 3:
+                if len(parts) == 1 and parts[0] == "ALL":
+                    has_all = True
+                elif len(parts) == 3:
                     if parts[2] not in all_cats:
                         print(
                             f"[{cat_name}] Possibility: {possibility} contains unlisted card or category {parts[2]}"
@@ -225,13 +228,34 @@ def probability_calculator(args):
                     print(
                         f"[{cat_name}] Check formatting of input_possibilities_here, line: {possibility}"
                     )
-            result.append(conditions)
+            # ("ALL", extra) is a deferred marker — expanded after base categories are known
+            result.append(("ALL", conditions) if has_all else conditions)
         return result
 
-    categories = {
+    raw_categories = {
         cat_name: parse_possibilities(text_possibilities, cat_name)
         for cat_name, text_possibilities in deck_file["hand"].items()
     }
+
+    # Collect every possibility from categories that contain no ALL markers
+    base_possibilities = [
+        poss
+        for parsed in raw_categories.values()
+        if not any(isinstance(p, tuple) for p in parsed)
+        for poss in parsed
+    ]
+
+    # Expand ALL markers: each ("ALL", extras) becomes one entry per base possibility
+    categories = {}
+    for cat_name, parsed in raw_categories.items():
+        expanded = []
+        for p in parsed:
+            if isinstance(p, tuple):  # ("ALL", extra_conditions)
+                for base in base_possibilities:
+                    expanded.append(base + p[1])
+            else:
+                expanded.append(p)
+        categories[cat_name] = expanded
 
     if "main_side_number" not in deck_file["deck"]:
         main_side_hand_amount = [5, 6]
