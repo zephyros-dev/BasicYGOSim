@@ -201,7 +201,9 @@ def probability_calculator(args):
     def parse_condition(parts, cat_name, possibility):
         if len(parts) == 3:
             if parts[2] not in all_cats:
-                print(f"[{cat_name}] Possibility: {possibility} contains unlisted card or category {parts[2]}")
+                print(
+                    f"[{cat_name}] Possibility: {possibility} contains unlisted card or category {parts[2]}"
+                )
                 sys.exit(0)
             if parts[1] not in ["-", "+", "="] or not parts[0].isdigit():
                 print(f"[{cat_name}] Check formatting of line: {possibility}")
@@ -209,11 +211,15 @@ def probability_calculator(args):
             return [parts[2], int(parts[0]), parts[1]]
         elif len(parts) == 1:
             if parts[0] not in all_cats:
-                print(f"[{cat_name}] Possibility: {possibility} contains unlisted card or category {parts[0]}")
+                print(
+                    f"[{cat_name}] Possibility: {possibility} contains unlisted card or category {parts[0]}"
+                )
                 sys.exit(0)
             return [parts[0], 1, "+"]
         else:
-            print(f"[{cat_name}] Check formatting of input_possibilities_here, line: {possibility}")
+            print(
+                f"[{cat_name}] Check formatting of input_possibilities_here, line: {possibility}"
+            )
             return None
 
     def split_kw(s, kw):
@@ -250,18 +256,24 @@ def probability_calculator(args):
                         opt_parts = opt_str.strip().split()
                         if len(opt_parts) == 1 and opt_parts[0] in category_names:
                             options.append(("catref", opt_parts[0]))
-                        elif opt_str.strip().startswith("COMB(") and opt_str.strip().endswith(")"):
+                        elif opt_str.strip().startswith(
+                            "COMB("
+                        ) and opt_str.strip().endswith(")"):
                             inner = opt_str.strip()[5:-1]
                             cat_list = [s.strip() for s in inner.split(",")]
                             for cn in cat_list:
                                 if cn not in category_names:
-                                    print(f"[{cat_name}] COMB references unknown category '{cn}'")
+                                    print(
+                                        f"[{cat_name}] COMB references unknown category '{cn}'"
+                                    )
                                     sys.exit(0)
                             options.append(("comb", cat_list))
                         else:
                             opt_conds = []
                             for cond_str in split_kw(opt_str, "AND"):
-                                cond = parse_condition(cond_str.strip().split(), cat_name, possibility)
+                                cond = parse_condition(
+                                    cond_str.strip().split(), cat_name, possibility
+                                )
                                 if cond is not None:
                                     opt_conds.append(cond)
                             if opt_conds:
@@ -276,7 +288,9 @@ def probability_calculator(args):
                         cat_list = [s.strip() for s in inner.split(",")]
                         for cn in cat_list:
                             if cn not in category_names:
-                                print(f"[{cat_name}] COMB references unknown category '{cn}'")
+                                print(
+                                    f"[{cat_name}] COMB references unknown category '{cn}'"
+                                )
                                 sys.exit(0)
                         comb_groups.append(cat_list)
                     else:
@@ -289,17 +303,26 @@ def probability_calculator(args):
                                 cat_list = [s.strip() for s in inner.split(",")]
                                 for cn in cat_list:
                                     if cn not in category_names:
-                                        print(f"[{cat_name}] COMB references unknown category '{cn}'")
+                                        print(
+                                            f"[{cat_name}] COMB references unknown category '{cn}'"
+                                        )
                                         sys.exit(0)
                                 options.append(("comb", cat_list))
                             else:
                                 opt_inner = opt_str.split()
-                                if len(opt_inner) == 1 and opt_inner[0] in category_names:
+                                if (
+                                    len(opt_inner) == 1
+                                    and opt_inner[0] in category_names
+                                ):
                                     options.append(("catref", opt_inner[0]))
                                 else:
                                     opt_conds = []
                                     for cond_str in split_kw(opt_str, "AND"):
-                                        cond = parse_condition(cond_str.strip().split(), cat_name, possibility)
+                                        cond = parse_condition(
+                                            cond_str.strip().split(),
+                                            cat_name,
+                                            possibility,
+                                        )
                                         if cond is not None:
                                             opt_conds.append(cond)
                                     if opt_conds:
@@ -316,7 +339,14 @@ def probability_calculator(args):
                         cond = parse_condition(parts, cat_name, possibility)
                         if cond is not None:
                             fixed_conditions.append(cond)
-            result.append({"ref": ref, "fixed": fixed_conditions, "or_groups": or_groups, "comb_groups": comb_groups})
+            result.append(
+                {
+                    "ref": ref,
+                    "fixed": fixed_conditions,
+                    "or_groups": or_groups,
+                    "comb_groups": comb_groups,
+                }
+            )
         return result
 
     raw_categories = {
@@ -331,7 +361,10 @@ def probability_calculator(args):
     base_categories = {
         cat_name: parsed
         for cat_name, parsed in raw_categories.items()
-        if all(e["ref"] is None and not has_catref(e) and not e["comb_groups"] for e in parsed)
+        if all(
+            e["ref"] is None and not has_catref(e) and not e["comb_groups"]
+            for e in parsed
+        )
     }
 
     def entry_to_flat(entry):
@@ -353,7 +386,9 @@ def probability_calculator(args):
             return base_cat_flat[ref_name]
         if ref_name in categories:
             return categories[ref_name]
-        print(f"[{cat_name}] references unknown or not-yet-defined category '{ref_name}'")
+        print(
+            f"[{cat_name}] references unknown or not-yet-defined category '{ref_name}'"
+        )
         sys.exit(0)
 
     def expand_comb(cat_list, cat_name):
@@ -362,7 +397,11 @@ def probability_calculator(args):
         result = []
         for combo in product(*sources):
             poss_keys = [frozenset(tuple(c) for c in poss) for poss in combo]
-            if any(poss_keys[i] == poss_keys[j] for i in range(len(poss_keys)) for j in range(i + 1, len(poss_keys))):
+            if any(
+                poss_keys[i] == poss_keys[j]
+                for i in range(len(poss_keys))
+                for j in range(i + 1, len(poss_keys))
+            ):
                 continue
             merged = [c for poss in combo for c in poss]
             key = frozenset(tuple(c) for c in merged)
@@ -389,11 +428,18 @@ def probability_calculator(args):
         expanded = []
         for entry in parsed:
             ref = entry["ref"]
-            resolved_groups = [resolve_or_group(g, cat_name) for g in entry["or_groups"]]
-            comb_expansions = [expand_comb(cat_list, cat_name) for cat_list in entry["comb_groups"]]
+            resolved_groups = [
+                resolve_or_group(g, cat_name) for g in entry["or_groups"]
+            ]
+            comb_expansions = [
+                expand_comb(cat_list, cat_name) for cat_list in entry["comb_groups"]
+            ]
             all_groups = comb_expansions + resolved_groups
             combos = (
-                [entry["fixed"] + [c for cond_set in combo for c in cond_set] for combo in product(*all_groups)]
+                [
+                    entry["fixed"] + [c for cond_set in combo for c in cond_set]
+                    for combo in product(*all_groups)
+                ]
                 if all_groups
                 else [entry["fixed"]]
             )
@@ -407,7 +453,9 @@ def probability_calculator(args):
                     for base in get_cat_flat(ref, cat_name):
                         expanded.append(base + full)
                 else:
-                    print(f"[{cat_name}] '{ref}' must be a base or previously-defined category")
+                    print(
+                        f"[{cat_name}] '{ref}' must be a base or previously-defined category"
+                    )
                     sys.exit(0)
         categories[cat_name] = expanded
 
@@ -443,12 +491,6 @@ def probability_calculator(args):
             print(f"  [aggregate]: {counter_aggregate / num_trials * 100:.2f}%")
 
 
-def combination_generator(args):
-    file = tomllib.loads(Path(args.file).read_text())
-    for combination in list(combinations(file["combination"]["combination"], 2)):
-        print(combination[0], "AND", combination[1])
-
-
 parser = argparse.ArgumentParser()
 subparsers = parser.add_subparsers(required=True)
 parser_prob = subparsers.add_parser(
@@ -463,18 +505,6 @@ parser_prob.add_argument(
     help="the deck file to use",
 )
 parser_prob.set_defaults(func=probability_calculator)
-
-parser_comb = subparsers.add_parser(
-    "combination", aliases=["comb"], help="Generate 2 cards combinations"
-)
-parser_comb.add_argument(
-    "-f",
-    "--file",
-    type=str,
-    help="choose which file to use for finding combination, default: sample.toml",
-    default="sample.toml",
-)
-parser_comb.set_defaults(func=combination_generator)
 
 if __name__ == "__main__":
     args = parser.parse_args()
