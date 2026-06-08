@@ -198,42 +198,78 @@ def probability_calculator(args):
 
     category_names = set(deck_file["hand"].keys())
 
+    def parse_condition(parts, cat_name, possibility):
+        if len(parts) == 3:
+            if parts[2] not in all_cats:
+                print(f"[{cat_name}] Possibility: {possibility} contains unlisted card or category {parts[2]}")
+                sys.exit(0)
+            if parts[1] not in ["-", "+", "="] or not parts[0].isdigit():
+                print(f"[{cat_name}] Check formatting of line: {possibility}")
+                sys.exit(0)
+            return [parts[2], int(parts[0]), parts[1]]
+        elif len(parts) == 1:
+            if parts[0] not in all_cats:
+                print(f"[{cat_name}] Possibility: {possibility} contains unlisted card or category {parts[0]}")
+                sys.exit(0)
+            return [parts[0], 1, "+"]
+        else:
+            print(f"[{cat_name}] Check formatting of input_possibilities_here, line: {possibility}")
+            return None
+
+    def split_kw(s, kw):
+        """Split s by keyword at the top level only (skips occurrences inside parentheses)."""
+        result, depth, start, i, n = [], 0, 0, 0, len(kw)
+        while i < len(s):
+            if s[i] == "(":
+                depth += 1
+            elif s[i] == ")":
+                depth -= 1
+            elif depth == 0 and s[i : i + n] == kw:
+                result.append(s[start:i])
+                start = i + n
+                i += n - 1  # loop adds 1 more
+            i += 1
+        result.append(s[start:])
+        return [seg.strip() for seg in result if seg.strip()]
+
     def parse_possibilities(text_possibilities, cat_name):
         result = []
         for possibility in text_possibilities:
             if len(possibility) == 0:
                 continue
-            conditions = []
-            ref = None  # "ALL" or a named category
-            for condition in possibility.split("AND"):
-                parts = condition.split()
-                if len(parts) == 1 and parts[0] == "ALL":
-                    ref = "ALL"
-                elif len(parts) == 1 and parts[0] in category_names:
-                    ref = parts[0]
-                elif len(parts) == 3:
-                    if parts[2] not in all_cats:
-                        print(
-                            f"[{cat_name}] Possibility: {possibility} contains unlisted card or category {parts[2]}"
-                        )
-                        sys.exit(0)
-                    if parts[1] not in ["-", "+", "="] or not parts[0].isdigit():
-                        print(f"[{cat_name}] Check formatting of line: {possibility}")
-                        sys.exit(0)
-                    conditions.append([parts[2], int(parts[0]), parts[1]])
-                elif len(parts) == 1:
-                    if parts[0] not in all_cats:
-                        print(
-                            f"[{cat_name}] Possibility: {possibility} contains unlisted card or category {parts[0]}"
-                        )
-                        sys.exit(0)
-                    conditions.append([parts[0], 1, "+"])
+            ref = None
+            fixed_conditions = []
+            or_groups = []
+            for segment in split_kw(possibility, "AND"):
+                if segment.startswith("(") and segment.endswith(")"):
+                    options = []
+                    for opt_str in split_kw(segment[1:-1], "OR"):
+                        if opt_str.startswith("(") and opt_str.endswith(")"):
+                            opt_str = opt_str[1:-1]
+                        opt_parts = opt_str.strip().split()
+                        if len(opt_parts) == 1 and opt_parts[0] in category_names:
+                            options.append(("catref", opt_parts[0]))
+                        else:
+                            opt_conds = []
+                            for cond_str in split_kw(opt_str, "AND"):
+                                cond = parse_condition(cond_str.strip().split(), cat_name, possibility)
+                                if cond is not None:
+                                    opt_conds.append(cond)
+                            if opt_conds:
+                                options.append(opt_conds)
+                    if options:
+                        or_groups.append(options)
                 else:
-                    print(
-                        f"[{cat_name}] Check formatting of input_possibilities_here, line: {possibility}"
-                    )
-            # (ref, extras) is a deferred marker — expanded after base categories are known
-            result.append((ref, conditions) if ref is not None else conditions)
+                    parts = segment.split()
+                    if len(parts) == 1 and parts[0] == "ALL":
+                        ref = "ALL"
+                    elif len(parts) == 1 and parts[0] in category_names:
+                        ref = parts[0]
+                    else:
+                        cond = parse_condition(parts, cat_name, possibility)
+                        if cond is not None:
+                            fixed_conditions.append(cond)
+            result.append({"ref": ref, "fixed": fixed_conditions, "or_groups": or_groups})
         return result
 
     raw_categories = {
@@ -241,34 +277,66 @@ def probability_calculator(args):
         for cat_name, text_possibilities in deck_file["hand"].items()
     }
 
-    # Base categories: those whose entries are all plain condition lists (no ref markers)
+    def has_catref(entry):
+        return any(isinstance(a, tuple) for g in entry["or_groups"] for a in g)
+
+    # Base categories: no top-level ref and no category refs in OR groups
     base_categories = {
         cat_name: parsed
         for cat_name, parsed in raw_categories.items()
-        if not any(isinstance(p, tuple) for p in parsed)
+        if all(e["ref"] is None and not has_catref(e) for e in parsed)
     }
-    all_base_possibilities = [poss for parsed in base_categories.values() for poss in parsed]
 
-    # Expand ref markers:
-    #   ("ALL", extras)      → every base possibility + extras
-    #   ("cat-name", extras) → every possibility in that named base category + extras
+    def entry_to_flat(entry):
+        if not entry["or_groups"]:
+            return [entry["fixed"]]
+        return [
+            entry["fixed"] + [c for opt in combo for c in opt]
+            for combo in product(*entry["or_groups"])
+        ]
+
+    base_cat_flat = {
+        cat_name: [poss for e in parsed for poss in entry_to_flat(e)]
+        for cat_name, parsed in base_categories.items()
+    }
+    all_base_flat = [poss for flat in base_cat_flat.values() for poss in flat]
+
+    def resolve_or_group(group, cat_name):
+        resolved = []
+        for alt in group:
+            if isinstance(alt, tuple):
+                ref_name = alt[1]
+                if ref_name not in base_cat_flat:
+                    print(f"[{cat_name}] '{ref_name}' in OR group must be a base category")
+                    sys.exit(0)
+                resolved.extend(base_cat_flat[ref_name])
+            else:
+                resolved.append(alt)
+        return resolved
+
     categories = {}
     for cat_name, parsed in raw_categories.items():
         expanded = []
-        for p in parsed:
-            if isinstance(p, tuple):
-                ref, extras = p
-                if ref == "ALL":
-                    source = all_base_possibilities
-                elif ref in base_categories:
-                    source = base_categories[ref]
+        for entry in parsed:
+            ref = entry["ref"]
+            resolved_groups = [resolve_or_group(g, cat_name) for g in entry["or_groups"]]
+            combos = (
+                [entry["fixed"] + [c for opt in combo for c in opt] for combo in product(*resolved_groups)]
+                if resolved_groups
+                else [entry["fixed"]]
+            )
+            for full in combos:
+                if ref is None:
+                    expanded.append(full)
+                elif ref == "ALL":
+                    for base in all_base_flat:
+                        expanded.append(base + full)
+                elif ref in base_cat_flat:
+                    for base in base_cat_flat[ref]:
+                        expanded.append(base + full)
                 else:
-                    print(f"[{cat_name}] '{ref}' must be a base category (cannot reference a category that itself uses ALL or another ref)")
+                    print(f"[{cat_name}] '{ref}' must be a base category (cannot reference a non-base category)")
                     sys.exit(0)
-                for base in source:
-                    expanded.append(base + extras)
-            else:
-                expanded.append(p)
         categories[cat_name] = expanded
 
     if "main_side_number" not in deck_file["deck"]:
