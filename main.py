@@ -240,6 +240,7 @@ def probability_calculator(args):
             ref = None
             fixed_conditions = []
             or_groups = []
+            comb_groups = []
             for segment in split_kw(possibility, "AND"):
                 if segment.startswith("(") and segment.endswith(")"):
                     options = []
@@ -249,6 +250,14 @@ def probability_calculator(args):
                         opt_parts = opt_str.strip().split()
                         if len(opt_parts) == 1 and opt_parts[0] in category_names:
                             options.append(("catref", opt_parts[0]))
+                        elif opt_str.strip().startswith("COMB(") and opt_str.strip().endswith(")"):
+                            inner = opt_str.strip()[5:-1]
+                            cat_list = [s.strip() for s in inner.split(",")]
+                            for cn in cat_list:
+                                if cn not in category_names:
+                                    print(f"[{cat_name}] COMB references unknown category '{cn}'")
+                                    sys.exit(0)
+                            options.append(("comb", cat_list))
                         else:
                             opt_conds = []
                             for cond_str in split_kw(opt_str, "AND"):
@@ -259,6 +268,44 @@ def probability_calculator(args):
                                 options.append(opt_conds)
                     if options:
                         or_groups.append(options)
+                elif segment.startswith("COMB("):
+                    or_parts = split_kw(segment, "OR")
+                    if len(or_parts) == 1:
+                        # Simple COMB(cat1, ...) with no OR
+                        inner = segment[5:-1]
+                        cat_list = [s.strip() for s in inner.split(",")]
+                        for cn in cat_list:
+                            if cn not in category_names:
+                                print(f"[{cat_name}] COMB references unknown category '{cn}'")
+                                sys.exit(0)
+                        comb_groups.append(cat_list)
+                    else:
+                        # COMB(...) OR ... — treat as an OR group
+                        options = []
+                        for opt_str in or_parts:
+                            opt_str = opt_str.strip()
+                            if opt_str.startswith("COMB(") and opt_str.endswith(")"):
+                                inner = opt_str[5:-1]
+                                cat_list = [s.strip() for s in inner.split(",")]
+                                for cn in cat_list:
+                                    if cn not in category_names:
+                                        print(f"[{cat_name}] COMB references unknown category '{cn}'")
+                                        sys.exit(0)
+                                options.append(("comb", cat_list))
+                            else:
+                                opt_inner = opt_str.split()
+                                if len(opt_inner) == 1 and opt_inner[0] in category_names:
+                                    options.append(("catref", opt_inner[0]))
+                                else:
+                                    opt_conds = []
+                                    for cond_str in split_kw(opt_str, "AND"):
+                                        cond = parse_condition(cond_str.strip().split(), cat_name, possibility)
+                                        if cond is not None:
+                                            opt_conds.append(cond)
+                                    if opt_conds:
+                                        options.append(opt_conds)
+                        if options:
+                            or_groups.append(options)
                 else:
                     parts = segment.split()
                     if len(parts) == 1 and parts[0] == "ALL":
@@ -269,7 +316,7 @@ def probability_calculator(args):
                         cond = parse_condition(parts, cat_name, possibility)
                         if cond is not None:
                             fixed_conditions.append(cond)
-            result.append({"ref": ref, "fixed": fixed_conditions, "or_groups": or_groups})
+            result.append({"ref": ref, "fixed": fixed_conditions, "or_groups": or_groups, "comb_groups": comb_groups})
         return result
 
     raw_categories = {
@@ -280,11 +327,11 @@ def probability_calculator(args):
     def has_catref(entry):
         return any(isinstance(a, tuple) for g in entry["or_groups"] for a in g)
 
-    # Base categories: no top-level ref and no category refs in OR groups
+    # Base categories: no top-level ref, no catref/comb in OR groups, and no COMB segments
     base_categories = {
         cat_name: parsed
         for cat_name, parsed in raw_categories.items()
-        if all(e["ref"] is None and not has_catref(e) for e in parsed)
+        if all(e["ref"] is None and not has_catref(e) and not e["comb_groups"] for e in parsed)
     }
 
     def entry_to_flat(entry):
@@ -301,15 +348,38 @@ def probability_calculator(args):
     }
     all_base_flat = [poss for flat in base_cat_flat.values() for poss in flat]
 
+    def get_cat_flat(ref_name, cat_name):
+        if ref_name in base_cat_flat:
+            return base_cat_flat[ref_name]
+        if ref_name in categories:
+            return categories[ref_name]
+        print(f"[{cat_name}] references unknown or not-yet-defined category '{ref_name}'")
+        sys.exit(0)
+
+    def expand_comb(cat_list, cat_name):
+        sources = [get_cat_flat(cn, cat_name) for cn in cat_list]
+        seen = set()
+        result = []
+        for combo in product(*sources):
+            poss_keys = [frozenset(tuple(c) for c in poss) for poss in combo]
+            if any(poss_keys[i] == poss_keys[j] for i in range(len(poss_keys)) for j in range(i + 1, len(poss_keys))):
+                continue
+            merged = [c for poss in combo for c in poss]
+            key = frozenset(tuple(c) for c in merged)
+            if key not in seen:
+                seen.add(key)
+                result.append(merged)
+        return result
+
     def resolve_or_group(group, cat_name):
         resolved = []
         for alt in group:
             if isinstance(alt, tuple):
-                ref_name = alt[1]
-                if ref_name not in base_cat_flat:
-                    print(f"[{cat_name}] '{ref_name}' in OR group must be a base category")
-                    sys.exit(0)
-                resolved.extend(base_cat_flat[ref_name])
+                kind, payload = alt[0], alt[1]
+                if kind == "catref":
+                    resolved.extend(get_cat_flat(payload, cat_name))
+                elif kind == "comb":
+                    resolved.extend(expand_comb(payload, cat_name))
             else:
                 resolved.append(alt)
         return resolved
@@ -320,9 +390,11 @@ def probability_calculator(args):
         for entry in parsed:
             ref = entry["ref"]
             resolved_groups = [resolve_or_group(g, cat_name) for g in entry["or_groups"]]
+            comb_expansions = [expand_comb(cat_list, cat_name) for cat_list in entry["comb_groups"]]
+            all_groups = comb_expansions + resolved_groups
             combos = (
-                [entry["fixed"] + [c for opt in combo for c in opt] for combo in product(*resolved_groups)]
-                if resolved_groups
+                [entry["fixed"] + [c for cond_set in combo for c in cond_set] for combo in product(*all_groups)]
+                if all_groups
                 else [entry["fixed"]]
             )
             for full in combos:
@@ -331,11 +403,11 @@ def probability_calculator(args):
                 elif ref == "ALL":
                     for base in all_base_flat:
                         expanded.append(base + full)
-                elif ref in base_cat_flat:
-                    for base in base_cat_flat[ref]:
+                elif ref in base_cat_flat or ref in categories:
+                    for base in get_cat_flat(ref, cat_name):
                         expanded.append(base + full)
                 else:
-                    print(f"[{cat_name}] '{ref}' must be a base category (cannot reference a non-base category)")
+                    print(f"[{cat_name}] '{ref}' must be a base or previously-defined category")
                     sys.exit(0)
         categories[cat_name] = expanded
 
