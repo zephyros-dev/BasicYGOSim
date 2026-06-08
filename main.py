@@ -196,17 +196,21 @@ def probability_calculator(args):
         num_extras += 2
     print(f"None-engine card ratio is: {ne_count}/{deck_count}")
 
+    category_names = set(deck_file["hand"].keys())
+
     def parse_possibilities(text_possibilities, cat_name):
         result = []
         for possibility in text_possibilities:
             if len(possibility) == 0:
                 continue
             conditions = []
-            has_all = False
+            ref = None  # "ALL" or a named category
             for condition in possibility.split("AND"):
                 parts = condition.split()
                 if len(parts) == 1 and parts[0] == "ALL":
-                    has_all = True
+                    ref = "ALL"
+                elif len(parts) == 1 and parts[0] in category_names:
+                    ref = parts[0]
                 elif len(parts) == 3:
                     if parts[2] not in all_cats:
                         print(
@@ -228,8 +232,8 @@ def probability_calculator(args):
                     print(
                         f"[{cat_name}] Check formatting of input_possibilities_here, line: {possibility}"
                     )
-            # ("ALL", extra) is a deferred marker — expanded after base categories are known
-            result.append(("ALL", conditions) if has_all else conditions)
+            # (ref, extras) is a deferred marker — expanded after base categories are known
+            result.append((ref, conditions) if ref is not None else conditions)
         return result
 
     raw_categories = {
@@ -237,22 +241,32 @@ def probability_calculator(args):
         for cat_name, text_possibilities in deck_file["hand"].items()
     }
 
-    # Collect every possibility from categories that contain no ALL markers
-    base_possibilities = [
-        poss
-        for parsed in raw_categories.values()
+    # Base categories: those whose entries are all plain condition lists (no ref markers)
+    base_categories = {
+        cat_name: parsed
+        for cat_name, parsed in raw_categories.items()
         if not any(isinstance(p, tuple) for p in parsed)
-        for poss in parsed
-    ]
+    }
+    all_base_possibilities = [poss for parsed in base_categories.values() for poss in parsed]
 
-    # Expand ALL markers: each ("ALL", extras) becomes one entry per base possibility
+    # Expand ref markers:
+    #   ("ALL", extras)      → every base possibility + extras
+    #   ("cat-name", extras) → every possibility in that named base category + extras
     categories = {}
     for cat_name, parsed in raw_categories.items():
         expanded = []
         for p in parsed:
-            if isinstance(p, tuple):  # ("ALL", extra_conditions)
-                for base in base_possibilities:
-                    expanded.append(base + p[1])
+            if isinstance(p, tuple):
+                ref, extras = p
+                if ref == "ALL":
+                    source = all_base_possibilities
+                elif ref in base_categories:
+                    source = base_categories[ref]
+                else:
+                    print(f"[{cat_name}] '{ref}' must be a base category (cannot reference a category that itself uses ALL or another ref)")
+                    sys.exit(0)
+                for base in source:
+                    expanded.append(base + extras)
             else:
                 expanded.append(p)
         categories[cat_name] = expanded
