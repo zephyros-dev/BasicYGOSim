@@ -40,3 +40,9 @@ Yu-Gi-Oh! probability estimator for deck consistency
 
 - I forked this from [flipflipshift](https://github.com/flipflipshift/BasicYGOSim), many thanks for the inspiration
 - I decided to fork this repository for my personal usage. The original scripts, while convenient by allowing running on browsers, make it hard to maintain multiple deck list, so I forked it and make it work on local machine instead
+
+## TODO
+
+- Side deck field
+- Side deck replace possiblities
+- Category for reference (not for calculation)

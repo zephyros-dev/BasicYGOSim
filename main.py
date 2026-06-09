@@ -2,10 +2,185 @@ import argparse
 import multiprocessing
 import random
 import sys
-from itertools import combinations, product
-from pathlib import Path
+from dataclasses import dataclass
+from enum import Enum, auto
+from itertools import product
 
 import tomllib
+
+# ── Hand DSL: tokens ─────────────────────────────────────────────────────────
+
+
+class _TK(Enum):
+    WORD = auto()
+    AND = auto()
+    OR = auto()
+    ALL = auto()
+    COMB = auto()
+    LPAREN = auto()
+    RPAREN = auto()
+    COMMA = auto()
+    EOF = auto()
+
+
+@dataclass
+class _Tok:
+    kind: _TK
+    val: str = ""
+
+
+# ── Hand DSL: AST nodes ───────────────────────────────────────────────────────
+
+
+@dataclass
+class _Cond:
+    card: str
+    minimum: int
+    sign: str
+
+
+@dataclass
+class _CatRef:
+    name: str  # "ALL" or a hand-category name
+
+
+@dataclass
+class _Comb:
+    cats: list
+
+
+@dataclass
+class _Or:
+    alts: list
+
+
+@dataclass
+class _And:
+    parts: list
+
+
+# ── Hand DSL: tokenizer ───────────────────────────────────────────────────────
+
+_KW = {
+    "AND": _TK.AND,
+    "OR": _TK.OR,
+    "ALL": _TK.ALL,
+    "COMB": _TK.COMB,
+    "(": _TK.LPAREN,
+    ")": _TK.RPAREN,
+    ",": _TK.COMMA,
+}
+
+
+def _tokenize(s):
+    s = s.replace("(", " ( ").replace(")", " ) ").replace(",", " , ")
+    return [_Tok(_KW.get(w, _TK.WORD), w) for w in s.split()] + [_Tok(_TK.EOF)]
+
+
+# ── Hand DSL: recursive-descent parser ───────────────────────────────────────
+#
+# Grammar:
+#   possibility := or_expr EOF
+#   or_expr     := and_expr (OR and_expr)*
+#   and_expr    := primary (AND primary)*
+#   primary     := '(' or_expr ')' | COMB '(' name (',' name)* ')' | atom
+#   atom        := ALL | cat_name | card | count sign card
+#
+def _parse(tokens, cat_name, line, category_names, all_cats):
+    pos = 0
+
+    def peek():
+        return tokens[pos]
+
+    def consume(kind=None):
+        nonlocal pos
+        tok = tokens[pos]
+        if kind is not None and tok.kind != kind:
+            print(f"[{cat_name}] Parse error near '{tok.val}' in: {line}")
+            sys.exit(0)
+        pos += 1
+        return tok
+
+    def parse_or():
+        left = parse_and()
+        if peek().kind != _TK.OR:
+            return left
+        alts = [left]
+        while peek().kind == _TK.OR:
+            consume()
+            alts.append(parse_and())
+        return _Or(alts)
+
+    def parse_and():
+        parts = [parse_primary()]
+        while peek().kind == _TK.AND:
+            consume()
+            parts.append(parse_primary())
+        return parts[0] if len(parts) == 1 else _And(parts)
+
+    def parse_primary():
+        k = peek().kind
+        if k == _TK.LPAREN:
+            consume()
+            node = parse_or()
+            consume(_TK.RPAREN)
+            return node
+        if k == _TK.COMB:
+            consume()
+            consume(_TK.LPAREN)
+            cats = [consume(_TK.WORD).val]
+            while peek().kind == _TK.COMMA:
+                consume()
+                cats.append(consume(_TK.WORD).val)
+            consume(_TK.RPAREN)
+            for cn in cats:
+                if cn not in category_names:
+                    print(f"[{cat_name}] COMB references unknown category '{cn}'")
+                    sys.exit(0)
+            return _Comb(cats)
+        if k == _TK.ALL:
+            consume()
+            return _CatRef("ALL")
+        w = consume(_TK.WORD).val
+        if w.isdigit():
+            sign = consume(_TK.WORD).val
+            if sign not in ("=", "+", "-"):
+                print(f"[{cat_name}] Expected sign after count in: {line}")
+                sys.exit(0)
+            card = consume(_TK.WORD).val
+            if card not in all_cats:
+                print(f"[{cat_name}] Unknown card/category '{card}' in: {line}")
+                sys.exit(0)
+            return _Cond(card, int(w), sign)
+        if w in category_names:
+            return _CatRef(w)
+        if w not in all_cats:
+            print(f"[{cat_name}] Unknown card/category '{w}' in: {line}")
+            sys.exit(0)
+        return _Cond(w, 1, "+")
+
+    node = parse_or()
+    consume(_TK.EOF)
+    return node
+
+
+# ── Deck: card line parser ────────────────────────────────────────────────────
+
+
+@dataclass
+class _DeckEntry:
+    name: str
+    quantity: int
+    tags: list  # additional aliases / category labels (e.g. "NE", "Name", "Exo")
+
+
+def _parse_deck_line(line):
+    parts = line.split()
+    if len(parts) < 2 or not parts[1].isdigit():
+        print(f"Deck entry must be 'NAME QUANTITY [TAGS...]': {line!r}")
+        sys.exit(0)
+    return _DeckEntry(parts[0], int(parts[1]), parts[2:])
+
 
 _card_hash = {}
 
@@ -154,38 +329,26 @@ def probability_calculator(args):
     num_extras = 0
     ne_count = 0
 
-    cardlines = deck_file["deck"]["main"]
-    for cardline in cardlines:
-        s = cardline.split(" ")
-        try:
-            deck_main = add_card(deck_main, s[0], int(s[1]))
-            if "NE" in s:
-                ne_count += int(s[1])
-        except Exception as err:
-            print(f"Error in deck input: {err}, check entry: " + cardline)
-            sys.exit(0)
-        deck_count += int(s[1])
-        all_cats.append(s[0])
-        if s[0] == "Upstart":
-            num_extras += int(s[1])
-        card_cats = [s[0]] + list(s[2:])
-        for cat in card_cats[1:]:
-            if cat not in all_cats:
-                all_cats.append(cat)
-        card_hash[s[0]] = card_cats
+    for e in [_parse_deck_line(line) for line in deck_file["deck"]["main"]]:
+        deck_main = add_card(deck_main, e.name, e.quantity)
+        deck_count += e.quantity
+        if "NE" in e.tags:
+            ne_count += e.quantity
+        if e.name == "Upstart":
+            num_extras += e.quantity
+        all_cats.append(e.name)
+        for tag in e.tags:
+            if tag not in all_cats:
+                all_cats.append(tag)
+        card_hash[e.name] = [e.name] + e.tags
 
-    if "side_replace" not in deck_file["deck"]:
-        side_replace_list = []
-    else:
-        side_replace_list = deck_file["deck"]["side_replace"]
-
+    side_replace_list = deck_file["deck"].get("side_replace", [])
     deck_side = deck_main.copy()
-    for cardline in side_replace_list:
-        s = cardline.split(" ")
+    for e in [_parse_deck_line(line) for line in side_replace_list]:
         try:
-            deck_side = remove_card(deck_side, s[0], int(s[1]))
-        except Exception as err:
-            print(f"Error in deck input: {err}, check entry: " + cardline)
+            deck_side = remove_card(deck_side, e.name, e.quantity)
+        except ValueError:
+            print(f"Side deck error: '{e.name}' not found in main deck")
             sys.exit(0)
 
     if "Prosperity" in deck_main or "Extravagance" in deck_main:
@@ -198,188 +361,28 @@ def probability_calculator(args):
 
     category_names = set(deck_file["hand"].keys())
 
-    def parse_condition(parts, cat_name, possibility):
-        if len(parts) == 3:
-            if parts[2] not in all_cats:
-                print(
-                    f"[{cat_name}] Possibility: {possibility} contains unlisted card or category {parts[2]}"
-                )
-                sys.exit(0)
-            if parts[1] not in ["-", "+", "="] or not parts[0].isdigit():
-                print(f"[{cat_name}] Check formatting of line: {possibility}")
-                sys.exit(0)
-            return [parts[2], int(parts[0]), parts[1]]
-        elif len(parts) == 1:
-            if parts[0] not in all_cats:
-                print(
-                    f"[{cat_name}] Possibility: {possibility} contains unlisted card or category {parts[0]}"
-                )
-                sys.exit(0)
-            return [parts[0], 1, "+"]
-        else:
-            print(
-                f"[{cat_name}] Check formatting of input_possibilities_here, line: {possibility}"
-            )
-            return None
-
-    def split_kw(s, kw):
-        """Split s by keyword at the top level only (skips occurrences inside parentheses)."""
-        result, depth, start, i, n = [], 0, 0, 0, len(kw)
-        while i < len(s):
-            if s[i] == "(":
-                depth += 1
-            elif s[i] == ")":
-                depth -= 1
-            elif depth == 0 and s[i : i + n] == kw:
-                result.append(s[start:i])
-                start = i + n
-                i += n - 1  # loop adds 1 more
-            i += 1
-        result.append(s[start:])
-        return [seg.strip() for seg in result if seg.strip()]
-
     def parse_possibilities(text_possibilities, cat_name):
-        result = []
-        for possibility in text_possibilities:
-            if len(possibility) == 0:
-                continue
-            ref = None
-            fixed_conditions = []
-            or_groups = []
-            comb_groups = []
-            for segment in split_kw(possibility, "AND"):
-                if segment.startswith("(") and segment.endswith(")"):
-                    options = []
-                    for opt_str in split_kw(segment[1:-1], "OR"):
-                        if opt_str.startswith("(") and opt_str.endswith(")"):
-                            opt_str = opt_str[1:-1]
-                        opt_parts = opt_str.strip().split()
-                        if len(opt_parts) == 1 and opt_parts[0] in category_names:
-                            options.append(("catref", opt_parts[0]))
-                        elif opt_str.strip().startswith(
-                            "COMB("
-                        ) and opt_str.strip().endswith(")"):
-                            inner = opt_str.strip()[5:-1]
-                            cat_list = [s.strip() for s in inner.split(",")]
-                            for cn in cat_list:
-                                if cn not in category_names:
-                                    print(
-                                        f"[{cat_name}] COMB references unknown category '{cn}'"
-                                    )
-                                    sys.exit(0)
-                            options.append(("comb", cat_list))
-                        else:
-                            opt_conds = []
-                            for cond_str in split_kw(opt_str, "AND"):
-                                cond = parse_condition(
-                                    cond_str.strip().split(), cat_name, possibility
-                                )
-                                if cond is not None:
-                                    opt_conds.append(cond)
-                            if opt_conds:
-                                options.append(opt_conds)
-                    if options:
-                        or_groups.append(options)
-                elif segment.startswith("COMB("):
-                    or_parts = split_kw(segment, "OR")
-                    if len(or_parts) == 1:
-                        # Simple COMB(cat1, ...) with no OR
-                        inner = segment[5:-1]
-                        cat_list = [s.strip() for s in inner.split(",")]
-                        for cn in cat_list:
-                            if cn not in category_names:
-                                print(
-                                    f"[{cat_name}] COMB references unknown category '{cn}'"
-                                )
-                                sys.exit(0)
-                        comb_groups.append(cat_list)
-                    else:
-                        # COMB(...) OR ... — treat as an OR group
-                        options = []
-                        for opt_str in or_parts:
-                            opt_str = opt_str.strip()
-                            if opt_str.startswith("COMB(") and opt_str.endswith(")"):
-                                inner = opt_str[5:-1]
-                                cat_list = [s.strip() for s in inner.split(",")]
-                                for cn in cat_list:
-                                    if cn not in category_names:
-                                        print(
-                                            f"[{cat_name}] COMB references unknown category '{cn}'"
-                                        )
-                                        sys.exit(0)
-                                options.append(("comb", cat_list))
-                            else:
-                                opt_inner = opt_str.split()
-                                if (
-                                    len(opt_inner) == 1
-                                    and opt_inner[0] in category_names
-                                ):
-                                    options.append(("catref", opt_inner[0]))
-                                else:
-                                    opt_conds = []
-                                    for cond_str in split_kw(opt_str, "AND"):
-                                        cond = parse_condition(
-                                            cond_str.strip().split(),
-                                            cat_name,
-                                            possibility,
-                                        )
-                                        if cond is not None:
-                                            opt_conds.append(cond)
-                                    if opt_conds:
-                                        options.append(opt_conds)
-                        if options:
-                            or_groups.append(options)
-                else:
-                    parts = segment.split()
-                    if len(parts) == 1 and parts[0] == "ALL":
-                        ref = "ALL"
-                    elif len(parts) == 1 and parts[0] in category_names:
-                        ref = parts[0]
-                    else:
-                        cond = parse_condition(parts, cat_name, possibility)
-                        if cond is not None:
-                            fixed_conditions.append(cond)
-            result.append(
-                {
-                    "ref": ref,
-                    "fixed": fixed_conditions,
-                    "or_groups": or_groups,
-                    "comb_groups": comb_groups,
-                }
-            )
-        return result
+        return [
+            _parse(_tokenize(p), cat_name, p, category_names, all_cats)
+            for p in text_possibilities
+            if p
+        ]
 
-    raw_categories = {
+    raw_asts = {
         cat_name: parse_possibilities(text_possibilities, cat_name)
         for cat_name, text_possibilities in deck_file["hand"].items()
     }
 
-    def has_catref(entry):
-        return any(isinstance(a, tuple) for g in entry["or_groups"] for a in g)
-
-    # Base categories: no top-level ref, no catref/comb in OR groups, and no COMB segments
-    base_categories = {
-        cat_name: parsed
-        for cat_name, parsed in raw_categories.items()
-        if all(
-            e["ref"] is None and not has_catref(e) and not e["comb_groups"]
-            for e in parsed
-        )
-    }
-
-    def entry_to_flat(entry):
-        if not entry["or_groups"]:
-            return [entry["fixed"]]
-        return [
-            entry["fixed"] + [c for opt in combo for c in opt]
-            for combo in product(*entry["or_groups"])
-        ]
-
-    base_cat_flat = {
-        cat_name: [poss for e in parsed for poss in entry_to_flat(e)]
-        for cat_name, parsed in base_categories.items()
-    }
-    all_base_flat = [poss for flat in base_cat_flat.values() for poss in flat]
+    def _has_hand_catref(node):
+        if isinstance(node, _CatRef):
+            return node.name == "ALL" or node.name in category_names
+        if isinstance(node, _And):
+            return any(_has_hand_catref(p) for p in node.parts)
+        if isinstance(node, _Or):
+            return any(_has_hand_catref(a) for a in node.alts)
+        if isinstance(node, _Comb):
+            return True
+        return False
 
     def get_cat_flat(ref_name, cat_name):
         if ref_name in base_cat_flat:
@@ -397,67 +400,84 @@ def probability_calculator(args):
         result = []
         for combo in product(*sources):
             poss_keys = [frozenset(tuple(c) for c in poss) for poss in combo]
+            # Skip entirely identical picks (e.g. same entry picked from both sources)
             if any(
                 poss_keys[i] == poss_keys[j]
                 for i in range(len(poss_keys))
                 for j in range(i + 1, len(poss_keys))
             ):
                 continue
-            merged = [c for poss in combo for c in poss]
-            key = frozenset(tuple(c) for c in merged)
+            # Deduplicate conditions across picks (partial overlaps are allowed;
+            # shared conditions appear once in the merged result)
+            seen_conds = set()
+            merged = []
+            for poss in combo:
+                for c in poss:
+                    ct = tuple(c)
+                    if ct not in seen_conds:
+                        seen_conds.add(ct)
+                        merged.append(c)
+            key = frozenset(seen_conds)
             if key not in seen:
                 seen.add(key)
                 result.append(merged)
         return result
 
-    def resolve_or_group(group, cat_name):
-        resolved = []
-        for alt in group:
-            if isinstance(alt, tuple):
-                kind, payload = alt[0], alt[1]
-                if kind == "catref":
-                    resolved.extend(get_cat_flat(payload, cat_name))
-                elif kind == "comb":
-                    resolved.extend(expand_comb(payload, cat_name))
-            else:
-                resolved.append(alt)
-        return resolved
+    def expand(node, cat_name):
+        if isinstance(node, _Cond):
+            return [[[node.card, node.minimum, node.sign]]]
+        if isinstance(node, _CatRef):
+            if node.name == "ALL":
+                return all_base_flat
+            return get_cat_flat(node.name, cat_name)
+        if isinstance(node, _Comb):
+            return expand_comb(node.cats, cat_name)
+        if isinstance(node, _Or):
+            result = []
+            for alt in node.alts:
+                result.extend(expand(alt, cat_name))
+            return result
+        # _And: cartesian product. Skip when merged result contains any duplicate
+        # condition (e.g. same card constraint required by two parts), and
+        # deduplicate symmetric results via seen set.
+        expanded_parts = [expand(p, cat_name) for p in node.parts]
+        seen = set()
+        result = []
+        for combo in product(*expanded_parts):
+            merged = [c for poss in combo for c in poss]
+            key = frozenset(tuple(c) for c in merged)
+            if len(key) < len(merged):
+                continue
+            if key not in seen:
+                seen.add(key)
+                result.append(merged)
+        return result
+
+    base_cat_names = {
+        name
+        for name, asts in raw_asts.items()
+        if not any(_has_hand_catref(ast) for ast in asts)
+    }
+    base_cat_flat = {
+        name: [poss for ast in raw_asts[name] for poss in expand(ast, name)]
+        for name in base_cat_names
+    }
+    all_base_flat = [poss for flat in base_cat_flat.values() for poss in flat]
 
     categories = {}
-    for cat_name, parsed in raw_categories.items():
-        expanded = []
-        for entry in parsed:
-            ref = entry["ref"]
-            resolved_groups = [
-                resolve_or_group(g, cat_name) for g in entry["or_groups"]
-            ]
-            comb_expansions = [
-                expand_comb(cat_list, cat_name) for cat_list in entry["comb_groups"]
-            ]
-            all_groups = comb_expansions + resolved_groups
-            combos = (
-                [
-                    entry["fixed"] + [c for cond_set in combo for c in cond_set]
-                    for combo in product(*all_groups)
-                ]
-                if all_groups
-                else [entry["fixed"]]
-            )
-            for full in combos:
-                if ref is None:
-                    expanded.append(full)
-                elif ref == "ALL":
-                    for base in all_base_flat:
-                        expanded.append(base + full)
-                elif ref in base_cat_flat or ref in categories:
-                    for base in get_cat_flat(ref, cat_name):
-                        expanded.append(base + full)
-                else:
-                    print(
-                        f"[{cat_name}] '{ref}' must be a base or previously-defined category"
-                    )
-                    sys.exit(0)
-        categories[cat_name] = expanded
+    for cat_name, asts in raw_asts.items():
+        categories[cat_name] = [poss for ast in asts for poss in expand(ast, cat_name)]
+
+    if args.verbose:
+        def fmt_cond(c):
+            card, minimum, sign = c
+            return card if (minimum == 1 and sign == "+") else f"{minimum} {sign} {card}"
+
+        print("\nResolved hand possibilities:")
+        for cat_name, possibilities in categories.items():
+            print(f"\n  [{cat_name}]:")
+            for poss in possibilities:
+                print("    " + " AND ".join(fmt_cond(c) for c in poss))
 
     if "main_side_number" not in deck_file["deck"]:
         main_side_hand_amount = [5, 6]
@@ -503,6 +523,12 @@ parser_prob.add_argument(
     "--deck",
     type=str,
     help="the deck file to use",
+)
+parser_prob.add_argument(
+    "-v",
+    "--verbose",
+    action="store_true",
+    help="print resolved hand possibilities for each category",
 )
 parser_prob.set_defaults(func=probability_calculator)
 

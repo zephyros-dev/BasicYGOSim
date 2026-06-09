@@ -5,8 +5,8 @@
 # - The format of each entry is as following:
 #   <card-name> <amount> <group>...
 # - card name cannot use space
-# - .e.g: Ash 2 Fodder NE
-# - In this case Ash is card name, 2 is the amount in the deck
+#   .e.g: Ash 2 Fodder NE
+#    - In this case Ash is card name, 2 is the amount in the deck
 # - Fodder means it belongs to Fodder group (which mean it can be used
 #   as tribute fodder for ritual summon. 
 # - You can use whichever group you need for your deck combo.
@@ -79,7 +79,7 @@ main_side_hand_amount = [5, 6]
 # - Probabilities are shown per category, then an aggregate (any category matched).
 # - Each entry represents the hand combination, and
 #   has the following syntax:
-#   <amount> <+ or -> <card-name> <AND/OR> ...
+#   < amount > < + or - or = > < card-name > < AND/OR > < category > < COMB(category) > ...
 # - .e.g: 2 + A AND 1 - B AND 0 = C
 #    means `2 or more of A, 1 or fewer of B, exactly 0 of C`
 # - if the amount is 1 or more, you can skip it.
@@ -131,17 +131,3 @@ general = [
 # "ALL" is a special hand, it takes every single possible hand from other category, then add the combination you want
 # For example, you want to see which hand can play through droll by adding the combo + card that counter droll here
 droll = ["ALL AND Cross-out AND 0 = Droll", "ALL AND anti-droll"]
-
-# This field is used with combination generator.
-# Check the README for detail
-# This field is optional
-[combination]
-combination = [
-    "Chef",
-    "Pois",
-    "Menu",
-    "Concours",
-    "Diviner",
-    "Angry",
-    "Restaurant",
-]
