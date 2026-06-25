@@ -359,7 +359,8 @@ def probability_calculator(args):
         num_extras += 2
     print(f"None-engine card ratio is: {ne_count}/{deck_count}")
 
-    category_names = set(deck_file["hand"].keys())
+    ref_section = deck_file.get("category", {})
+    category_names = set(deck_file["hand"].keys()) | set(ref_section.keys())
 
     def parse_possibilities(text_possibilities, cat_name):
         return [
@@ -368,9 +369,10 @@ def probability_calculator(args):
             if p
         ]
 
+    # ref_section entries come first so they are expanded before hand entries reference them
     raw_asts = {
         cat_name: parse_possibilities(text_possibilities, cat_name)
-        for cat_name, text_possibilities in deck_file["hand"].items()
+        for cat_name, text_possibilities in {**ref_section, **deck_file["hand"]}.items()
     }
 
     def _has_hand_catref(node):
@@ -387,8 +389,8 @@ def probability_calculator(args):
     def get_cat_flat(ref_name, cat_name):
         if ref_name in base_cat_flat:
             return base_cat_flat[ref_name]
-        if ref_name in categories:
-            return categories[ref_name]
+        if ref_name in expanded:
+            return expanded[ref_name]
         print(
             f"[{cat_name}] references unknown or not-yet-defined category '{ref_name}'"
         )
@@ -464,9 +466,12 @@ def probability_calculator(args):
     }
     all_base_flat = [poss for flat in base_cat_flat.values() for poss in flat]
 
-    categories = {}
+    expanded = {}
     for cat_name, asts in raw_asts.items():
-        categories[cat_name] = [poss for ast in asts for poss in expand(ast, cat_name)]
+        expanded[cat_name] = [poss for ast in asts for poss in expand(ast, cat_name)]
+
+    hand_names = set(deck_file["hand"].keys())
+    categories = {k: v for k, v in expanded.items() if k in hand_names}
 
     if args.verbose:
         def fmt_cond(c):
