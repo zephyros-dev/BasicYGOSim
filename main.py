@@ -287,10 +287,11 @@ def _is_one_valid_draw(
 
 
 def _run_chunk(args):
-    deck_list, hand_size, categories, num_extras, chunk_size = args
+    deck_list, hand_size, categories, num_extras, chunk_size, nopt_cards = args
     deck = deck_list.copy()
     cat_counters = {cat: 0 for cat in categories}
     aggregate = 0
+    dup_counter = 0
     for _ in range(chunk_size):
         hand, extras = _get_hand(deck, hand_size, num_extras)
         any_valid = False
@@ -302,7 +303,9 @@ def _run_chunk(args):
                 any_valid = True
         if any_valid:
             aggregate += 1
-    return cat_counters, aggregate
+        if any(hand.count(c) >= 2 for c in set(hand) if c != "blank" and c not in nopt_cards):
+            dup_counter += 1
+    return cat_counters, aggregate, dup_counter
 
 
 def probability_calculator(args):
@@ -328,12 +331,17 @@ def probability_calculator(args):
     deck_count = 0
     num_extras = 0
     ne_count = 0
+    nopt_count = 0
+    nopt_cards = set()
 
     for e in [_parse_deck_line(line) for line in deck_file["deck"]["main"]]:
         deck_main = add_card(deck_main, e.name, e.quantity)
         deck_count += e.quantity
         if "NE" in e.tags:
             ne_count += e.quantity
+        if "NOPT" in e.tags:
+            nopt_count += e.quantity
+            nopt_cards.add(e.name)
         if e.name == "Upstart":
             num_extras += e.quantity
         all_cats.append(e.name)
@@ -357,7 +365,6 @@ def probability_calculator(args):
         num_extras += 3
     if "Desires" in deck_main:
         num_extras += 2
-    print(f"None-engine card ratio is: {ne_count}/{deck_count}")
 
     ref_section = deck_file.get("category", {})
     category_names = set(deck_file["hand"].keys()) | set(ref_section.keys())
@@ -484,6 +491,10 @@ def probability_calculator(args):
             for poss in possibilities:
                 print("    " + " AND ".join(fmt_cond(c) for c in poss))
 
+    print(f"\nNone-engine card ratio is: {ne_count}/{deck_count}")
+    if nopt_count:
+        print(f"No-opt card ratio is: {nopt_count}/{deck_count}")
+
     if "main_side_number" not in deck_file["deck"]:
         main_side_hand_amount = [5, 6]
     else:
@@ -503,17 +514,19 @@ def probability_calculator(args):
         ) as pool:
             results = pool.map(
                 _run_chunk,
-                [(deck_list, hand_size, categories, num_extras, c) for c in chunks],
+                [(deck_list, hand_size, categories, num_extras, c, nopt_cards) for c in chunks],
             )
 
         cat_counters = {cat: sum(r[0][cat] for r in results) for cat in categories}
         counter_aggregate = sum(r[1] for r in results)
+        counter_dup = sum(r[2] for r in results)
 
         print(f"\nHand of {hand_size} ({turn}):")
         for cat_name, count in cat_counters.items():
             print(f"  [{cat_name}]: {count / num_trials * 100:.2f}%")
         if len(categories) > 1:
-            print(f"  [aggregate]: {counter_aggregate / num_trials * 100:.2f}%")
+            print(f"  [total]: {counter_aggregate / num_trials * 100:.2f}%")
+        print(f"  [no-dup]: {(num_trials - counter_dup) / num_trials * 100:.2f}%")
 
 
 parser = argparse.ArgumentParser()
