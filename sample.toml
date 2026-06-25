@@ -54,15 +54,15 @@ main = [
 # This field is optional
 side_replace = ["Sakitama 1"]
 
+# Hand counts for main deck and side decking,
+# for blind 2nd deck you can use [6, 6]
+# This field is optional
+main_side_number = [5, 6]
+
 # Category are collection of hands, where you can put here to later be used
 # in [hand] as reference
 [category]
 1cc = ["Martha", "Pax", "Betrayal"]
-
-# Hand counts for main deck and side decking, 
-# for blind 2nd deck you can use [6, 6]
-# This field is optional
-main_side_hand_amount = [5, 6]
 
 [hand]
 # - List your acceptable combinations of cards in hand using named categories.
@@ -74,25 +74,23 @@ main_side_hand_amount = [5, 6]
 # - .e.g: 2 + A AND 1 - B AND 0 = C
 #    means `2 or more of A, 1 or fewer of B, exactly 0 of C`
 # - if the amount is 1 or more, you can skip it.
-#   .e.g: `Chef AND Pois` is equivalent to `1 + Chef AND 1 + Pois`
+#   .e.g: `Ichiki AND Elis` is equivalent to `1 + Ichiki AND 1 + Elis`
+# - COMB(cat-a, cat-b) generates every unique pair of hands from two categories.
+#   Conditions shared between the two picked hands are merged into one.
+#   .e.g: COMB(0-ht, 0-ht) means "two distinct 0-ht plays in the same hand"
+#   You can pass more than two categories: COMB(0-ht, 0-ht, 0-ht)
 weak = ["Sakitama AND Exo", "Sakitama AND Fuwalos", "Elis AND Exo"]
 
 0-ht = ["1cc", "Ichiki AND Exo", "Ichiki AND Elis"]
 
 1-ht = [
-    "Martha AND (Elis OR Stella)",
-    "Martha AND Ichiki",
-    "0-ht AND Thrust",
-    "0-ht AND Called-by",
-    "0-ht AND Talent",
+    "Martha AND (Elis OR Stella OR Ichiki)",
+    "0-ht AND (Thrust OR Called-by OR Talent)",
 ]
 
 droll = [
-    "0-ht AND Thrust",
-    "0-ht AND Called-by",
-    "Pax AND Exo",
-    "Pax AND Betrayal",
-    "0-ht AND Shifter",
+    "0-ht AND (Thrust OR Called-by OR Shifter)",
+    "Pax AND (Betrayal OR Exo)",
 ]
 
 charmies = ["0-ht AND (Called-by OR Ash)"]

@@ -515,6 +515,7 @@ def probability_calculator(args):
         print(f"\nHand of {hand_size} ({turn}):")
         for cat_name, count in cat_counters.items():
             print(f"  [{cat_name}]: {count / num_trials * 100:.2f}%")
+        print("  " + "-" * 20)
         if len(categories) > 1:
             print(f"  [total]: {counter_aggregate / num_trials * 100:.2f}%")
         print(f"  [no-dup]: {(num_trials - counter_dup) / num_trials * 100:.2f}%")
