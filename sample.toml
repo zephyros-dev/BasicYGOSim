@@ -27,46 +27,37 @@
 #   at the results. I used this to check how many non-engine slots can
 #   I afford without losing consistency
 main = [
-    "Chef 3",
-    "Pois 2 NS",
-    "Angry 1",
-    "Bael 1",
-    "Bala 1",
-    "Foie 1",
-    "Poeltis 1",
-    "Bueri 1",
-    "Restaurant 2",
-    "Recipe-book 1",
-    "Nadir 3",
-
-    "Menu 3",
-    "Prep 3 Angry",
-    "Fish-recipe 1 Ritual-spell",
-    "Meat-recipe 1 Ritual-spell",
-    "Special-recipe 1",
-    "Diviner 2 NS",
-    "Raven 1",
-    "Maximus 1 Fodder",
-
-    "Ash 2 Fodder NE",
-    "Nib 1 Fodder NE",
-    "Gamma 1 NE anti-droll",
-    "Driver 1 Fodder NE",
-    "Called-by 1 NE anti-droll",
+    "Martha 3 Name",
+    "Elis 3 Name",
+    "Stella 2 Exo Name",
+    "Sophia 2 Exo Name",
+    "Irene 1 Exo Name",
+    "Ichiki 3",
+    "Pax 3",
+    "Betrayal 3",
+    "Returnia 1",
+    "Vadis 1",
+    "Shifter 1 NE",
+    "Ash 3 NE",
+    "Nib 1 NE",
+    "Thrust 1 NE",
     "Talent 1 NE",
-    "Cross-out 1 NE",
-    "Instant-Fusion 1 NE anti-droll",
-    "Droll 1 NE",
-    "Crow 1 NE",
-
-    "Concours 3",
-    # "Pre-prep 1",
+    "Called-by 1 NE",
+    "Fuwalos 3 NE",
+    "FnV 3 NE",
+    "Forbidden-crown 3 NE",
+    "Sakitama 1",
 ]
 
 # These cards are replaced by Blank card when side decking, 
 # this is to check for consistency after siding out engine cards.
 # This field is optional
-side_replace = ["Diviner 2", "Raven 1"]
+side_replace = ["Sakitama 1"]
+
+# Category are collection of hands, where you can put here to later be used
+# in [hand] as reference
+[category]
+1cc = ["Martha", "Pax", "Betrayal"]
 
 # Hand counts for main deck and side decking, 
 # for blind 2nd deck you can use [6, 6]
@@ -84,50 +75,26 @@ main_side_hand_amount = [5, 6]
 #    means `2 or more of A, 1 or fewer of B, exactly 0 of C`
 # - if the amount is 1 or more, you can skip it.
 #   .e.g: `Chef AND Pois` is equivalent to `1 + Chef AND 1 + Pois`
-general = [
-    "NS AND Maximus",
-    "Nadir AND 0 = Maximus",
-    "Nadir AND Raven AND Maximus",
+weak = ["Sakitama AND Exo", "Sakitama AND Fuwalos", "Elis AND Exo"]
 
-    "Chef AND Pois",
-    "Chef AND Menu",
-    "Chef AND Diviner",
-    "Chef AND Angry",
-    "Chef AND Restaurant AND Fodder",
-    "Pois AND Menu",
-    "Pois AND Angry",
-    "Pois AND Restaurant",
-    "Menu AND Diviner",
-    "Menu AND Angry",
-    "Menu AND Restaurant AND Fodder",
+0-ht = ["1cc", "Ichiki AND Exo", "Ichiki AND Elis"]
 
-    "Diviner AND Angry",
-    "Diviner AND Restaurant",
-    "Angry AND Restaurant AND Fodder",
-
-    "Pois AND Bueri",
-    "Pois AND Ritual-spell",
-    "Diviner AND Bueri",
-    "Diviner AND Ritual-spell",
-
-    "Fodder AND Menu",
-    "Diviner AND Raven",
-
-    "Concours AND Chef",
-    "Concours AND Menu",
-    "Concours AND Diviner",
-    "Concours AND Angry",
-    "Concours AND Restaurant",
-    "Concours AND Bueri",
-    "Concours AND Ritual-spell",
-
-    # "Pre-prep AND Pois AND 0 = Bueri AND 0 = Fish-recipe",
-    # "Pre-prep AND Diviner AND 0 = Bueri AND 0 = Fish-recipe",
-    # "Pre-prep AND Concours AND 0 = Bueri AND 0 = Fish-recipe",
-    # "Pre-prep AND Angry AND 0 = Bueri AND 0 = Fish-recipe",
-    # "Pre-prep AND Fodder AND 0 = Bueri AND 0 = Fish-recipe",
+1-ht = [
+    "Martha AND (Elis OR Stella)",
+    "Martha AND Ichiki",
+    "0-ht AND Thrust",
+    "0-ht AND Called-by",
+    "0-ht AND Talent",
 ]
 
-# "ALL" is a special hand, it takes every single possible hand from other category, then add the combination you want
-# For example, you want to see which hand can play through droll by adding the combo + card that counter droll here
-droll = ["ALL AND Cross-out AND 0 = Droll", "ALL AND anti-droll"]
+droll = [
+    "0-ht AND Thrust",
+    "0-ht AND Called-by",
+    "Pax AND Exo",
+    "Pax AND Betrayal",
+    "0-ht AND Shifter",
+]
+
+charmies = ["0-ht AND (Called-by OR Ash)"]
+
+nib = ["Betrayal AND (Name OR Pax OR Ichiki)"]

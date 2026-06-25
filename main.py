@@ -15,7 +15,6 @@ class _TK(Enum):
     WORD = auto()
     AND = auto()
     OR = auto()
-    ALL = auto()
     COMB = auto()
     LPAREN = auto()
     RPAREN = auto()
@@ -64,7 +63,6 @@ class _And:
 _KW = {
     "AND": _TK.AND,
     "OR": _TK.OR,
-    "ALL": _TK.ALL,
     "COMB": _TK.COMB,
     "(": _TK.LPAREN,
     ")": _TK.RPAREN,
@@ -84,7 +82,7 @@ def _tokenize(s):
 #   or_expr     := and_expr (OR and_expr)*
 #   and_expr    := primary (AND primary)*
 #   primary     := '(' or_expr ')' | COMB '(' name (',' name)* ')' | atom
-#   atom        := ALL | cat_name | card | count sign card
+#   atom        := cat_name | card | count sign card
 #
 def _parse(tokens, cat_name, line, category_names, all_cats):
     pos = 0
@@ -138,9 +136,6 @@ def _parse(tokens, cat_name, line, category_names, all_cats):
                     print(f"[{cat_name}] COMB references unknown category '{cn}'")
                     sys.exit(0)
             return _Comb(cats)
-        if k == _TK.ALL:
-            consume()
-            return _CatRef("ALL")
         w = consume(_TK.WORD).val
         if w.isdigit():
             sign = consume(_TK.WORD).val
@@ -384,7 +379,7 @@ def probability_calculator(args):
 
     def _has_hand_catref(node):
         if isinstance(node, _CatRef):
-            return node.name == "ALL" or node.name in category_names
+            return node.name in category_names
         if isinstance(node, _And):
             return any(_has_hand_catref(p) for p in node.parts)
         if isinstance(node, _Or):
@@ -436,8 +431,6 @@ def probability_calculator(args):
         if isinstance(node, _Cond):
             return [[[node.card, node.minimum, node.sign]]]
         if isinstance(node, _CatRef):
-            if node.name == "ALL":
-                return all_base_flat
             return get_cat_flat(node.name, cat_name)
         if isinstance(node, _Comb):
             return expand_comb(node.cats, cat_name)
@@ -471,8 +464,6 @@ def probability_calculator(args):
         name: [poss for ast in raw_asts[name] for poss in expand(ast, name)]
         for name in base_cat_names
     }
-    all_base_flat = [poss for flat in base_cat_flat.values() for poss in flat]
-
     expanded = {}
     for cat_name, asts in raw_asts.items():
         expanded[cat_name] = [poss for ast in asts for poss in expand(ast, cat_name)]
