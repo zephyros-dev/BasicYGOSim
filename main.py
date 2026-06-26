@@ -298,7 +298,11 @@ def _run_chunk(args):
                 any_valid = True
         if any_valid:
             aggregate += 1
-        if any(hand.count(c) >= 2 for c in set(hand) if c != "blank" and c not in nopt_cards):
+        if any(
+            hand.count(c) >= 2
+            for c in set(hand)
+            if c != "blank" and c not in nopt_cards
+        ):
             dup_counter += 1
     return cat_counters, aggregate, dup_counter
 
@@ -472,9 +476,12 @@ def probability_calculator(args):
     categories = {k: v for k, v in expanded.items() if k in hand_names}
 
     if args.verbose:
+
         def fmt_cond(c):
             card, minimum, sign = c
-            return card if (minimum == 1 and sign == "+") else f"{minimum} {sign} {card}"
+            return (
+                card if (minimum == 1 and sign == "+") else f"{minimum} {sign} {card}"
+            )
 
         print("\nResolved hand possibilities:")
         for cat_name, possibilities in categories.items():
@@ -484,7 +491,7 @@ def probability_calculator(args):
 
     print(f"\nNone-engine card ratio is: {ne_count}/{deck_count}")
     if nopt_count:
-        print(f"No-opt card ratio is: {nopt_count}/{deck_count}")
+        print(f"Non-opt card ratio is: {nopt_count}/{deck_count}")
 
     if "main_side_number" not in deck_file["deck"]:
         main_side_hand_amount = [5, 6]
@@ -505,7 +512,10 @@ def probability_calculator(args):
         ) as pool:
             results = pool.map(
                 _run_chunk,
-                [(deck_list, hand_size, categories, num_extras, c, nopt_cards) for c in chunks],
+                [
+                    (deck_list, hand_size, categories, num_extras, c, nopt_cards)
+                    for c in chunks
+                ],
             )
 
         cat_counters = {cat: sum(r[0][cat] for r in results) for cat in categories}

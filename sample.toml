@@ -22,10 +22,13 @@
 #   - Extravagance
 #   - Upstart (For Chicken Game you can add it as another Upstart)
 #   - Duality
-# - There's a special groups called NE (none-engine). You can add cards
-#   that are non-engine to this group to see it amounts being printed
-#   at the results. I used this to check how many non-engine slots can
-#   I afford without losing consistency
+# - There are 2 special groups
+#   - NE (none-engine). You can add cards that are non-engine to this group
+#     to see it amounts being printed at the results. I used this to check
+#     how many non-engine slots can I afford without losing consistency
+#   - NOPT: Cards that are in this group are not counted toward duplicated hands
+#     (.e.g: Sky Striker Engage, Infinite Impermanence) since you can use multiple
+#     in a single turn
 main = [
     "Martha 3 Name",
     "Elis 3 Name",
@@ -44,7 +47,8 @@ main = [
     "Talent 1 NE",
     "Called-by 1 NE",
     "Fuwalos 3 NE",
-    "FnV 3 NE",
+    # "FnV 3 NE",
+    "Imperm 3 NE NOPT",
     "Forbidden-crown 3 NE",
     "Sakitama 1",
 ]
@@ -77,7 +81,7 @@ main_side_number = [5, 6]
 #   .e.g: `Ichiki AND Elis` is equivalent to `1 + Ichiki AND 1 + Elis`
 # - COMB(cat-a, cat-b) generates every unique pair of hands from two categories.
 #   Conditions shared between the two picked hands are merged into one.
-#   .e.g: COMB(0-ht, 0-ht) means "two distinct 0-ht plays in the same hand"
+#   .e.g: COMB(0-ht, 0-ht) means "two distinct 0-ht hand combinations"
 #   You can pass more than two categories: COMB(0-ht, 0-ht, 0-ht)
 weak = ["Sakitama AND Exo", "Sakitama AND Fuwalos", "Elis AND Exo"]
 
