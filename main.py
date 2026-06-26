@@ -1,3 +1,10 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "pyyaml",
+# ]
+# ///
+
 import argparse
 import multiprocessing
 import random
@@ -6,7 +13,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from itertools import product
 
-import tomllib
+import yaml
 
 # ── Hand DSL: tokens ─────────────────────────────────────────────────────────
 
@@ -310,8 +317,8 @@ def _run_chunk(args):
 def probability_calculator(args):
     num_trials = 100000
 
-    with open(args.deck, "rb") as f:
-        deck_file = tomllib.load(f)
+    with open(args.deck) as f:
+        deck_file = yaml.safe_load(f)
 
     def add_card(deck, name, quantity):
         for _ in range(quantity):

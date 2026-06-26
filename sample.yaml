@@ -1,0 +1,115 @@
+# The file format is yaml, you can use # before each line for comment, or quick
+# trial of each entry
+
+deck:
+  # - The main field is for the list of cards that are used in your deck
+  # - The format of each entry is as following:
+  #   <card-name> <amount> <group>...
+  # - card name cannot use space
+  #   .e.g: Ash 2 Fodder NE
+  #    - In this case Ash is card name, 2 is the amount in the deck
+  # - Fodder means it belongs to Fodder group (which mean it can be used
+  #   as tribute fodder for ritual summon.
+  # - You can use whichever group you need for your deck combo.
+  #   .e.g: Tri-Brigade Kerass requires discard a tri-type,
+  #   so you can use a tri-type group for it
+  # - NE means non-engine group
+  # - You can also write other card name into the group, in case the card
+  #   is used as a searcher another card in deck
+  #   .e.g: ROTA 1 Raye
+  # - These following draw cards are supported calculating consistency:
+  #   - Desires (This one is broken rn, may fix it once I got some time...)
+  #   - Prosperity
+  #   - Extravagance
+  #   - Upstart (For Chicken Game you can add it as another Upstart)
+  #   - Duality
+  # - There are 2 special groups
+  #   - NE (none-engine). You can add cards that are non-engine to this group
+  #     to see it amounts being printed at the results. I used this to check
+  #     how many non-engine slots can I afford without losing consistency
+  #   - NOPT: Cards that are in this group are not counted toward duplicated hands
+  #     (.e.g: Sky Striker Engage, Infinite Impermanence) since you can use multiple
+  #     in a single turn
+  main:
+    - "Martha 3 Name"
+    - "Elis 3 Name"
+    - "Stella 2 Exo Name"
+    - "Sophia 2 Exo Name"
+    - "Irene 1 Exo Name"
+    - "Ichiki 3"
+    - "Pax 3"
+    - "Betrayal 3"
+    - "Returnia 1"
+    - "Vadis 1"
+    - "Shifter 1 NE"
+    - "Ash 3 NE"
+    - "Nib 1 NE"
+    - "Thrust 1 NE"
+    - "Talent 1 NE"
+    - "Called-by 1 NE"
+    - "Fuwalos 3 NE"
+    # - "FnV 3 NE"
+    - "Imperm 3 NE NOPT"
+    - "Forbidden-crown 3 NE"
+    - "Sakitama 1"
+
+  # These cards are replaced by NE card when side decking,
+  # this is to check for consistency after siding out engine cards.
+  # This field is optional
+  side_replace:
+    - "Sakitama 1"
+
+  # Hand counts for main deck and side decking,
+  # for blind 2nd deck you can use [6, 6]
+  # This field is optional
+  main_side_number: [5, 6]
+
+# Category are collection of hands, where you can put here to later be used
+# in hand as reference
+category:
+  1cc:
+    - Martha
+    - Pax
+    - Betrayal
+
+# - List your acceptable combinations of cards in hand using named categories.
+# - Each key under hand is a category name (e.g. all, standard, anti-droll).
+# - Probabilities are shown per category, then an aggregate (any category matched).
+# - Each entry represents the hand combination, and
+#   has the following syntax:
+#   < amount > < + or - or = > < card-name > < AND/OR > < category > < COMB(category) > ...
+# - .e.g: 2 + A AND 1 - B AND 0 = C
+#    means `2 or more of A, 1 or fewer of B, exactly 0 of C`
+# - if the amount is 1 or more, you can skip it.
+#   .e.g: `Ichiki AND Elis` is equivalent to `1 + Ichiki AND 1 + Elis`
+# - COMB(cat-a, cat-b) generates every unique pair of hands from two categories.
+#   Conditions shared between the two picked hands are merged into one.
+#   .e.g: COMB(0-ht, 0-ht) means "two distinct 0-ht hand combinations"
+#   You can pass more than two categories: COMB(0-ht, 0-ht, 0-ht)
+# - Grouping for OR can be made using bracket ()
+hand:
+  weak:
+    - "Sakitama AND Exo"
+    - "Sakitama AND Fuwalos"
+    - "Elis AND Exo"
+
+  0-ht:
+    - 1cc
+    - "Ichiki AND Exo"
+    - "Ichiki AND Elis"
+
+  1-ht:
+    - "COMB(1cc, 1cc)"
+    - "Martha AND (Elis OR Stella OR Ichiki)"
+    - "0-ht AND (Thrust OR Called-by OR Talent)"
+
+  droll:
+    - "0-ht AND (Thrust OR Called-by OR Shifter)"
+    - "Pax AND (Betrayal OR Martha)"
+    - "Martha AND (Exo OR Sakitama) AND Ichiki"
+
+  charmies:
+    - "0-ht AND (Called-by OR Ash)"
+
+  nib:
+    - "Betrayal AND (Name OR Pax OR Ichiki)"
