@@ -83,6 +83,7 @@ main_side_number = [5, 6]
 #   Conditions shared between the two picked hands are merged into one.
 #   .e.g: COMB(0-ht, 0-ht) means "two distinct 0-ht hand combinations"
 #   You can pass more than two categories: COMB(0-ht, 0-ht, 0-ht)
+# - Grouping for OR can be made using bracket ()
 weak = ["Sakitama AND Exo", "Sakitama AND Fuwalos", "Elis AND Exo"]
 
 0-ht = ["1cc", "Ichiki AND Exo", "Ichiki AND Elis"]
