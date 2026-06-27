@@ -204,9 +204,29 @@ def _hand_comb(hand):
     return product(*[_card_hash[c] for c in hand if c != "blank"])
 
 
-def _is_valid(hand, condition):
+def _count_group(tag, hand):
+    """Count cards in hand belonging to a group tag.
+    Non-NOPT cards are counted once per unique name; NOPT cards count per occurrence.
+    """
+    num = 0
+    seen = set()
+    for c in hand:
+        if c == "blank":
+            continue
+        labels = _card_hash.get(c, [])
+        if tag in labels:
+            if "NOPT" in labels:
+                num += 1
+            elif c not in seen:
+                num += 1
+                seen.add(c)
+    return num
+
+
+def _is_valid(combo, hand, condition):
     for card, minimum, sign in condition:
-        num = hand.count(card)
+        # Card names are keyed in _card_hash; group tags are not.
+        num = combo.count(card) if card in _card_hash else _count_group(card, hand)
         if num < minimum and sign != "-":
             return False
         if num > minimum and sign != "+":
@@ -217,7 +237,7 @@ def _is_valid(hand, condition):
 def _is_one_valid(hand, possibilities):
     for comb in _hand_comb(hand):
         for p in possibilities:
-            if _is_valid(comb, p):
+            if _is_valid(comb, hand, p):
                 return True
     return False
 
@@ -289,7 +309,9 @@ def _is_one_valid_draw(
 
 
 def _run_chunk(args):
-    deck_list, turn1_cats, turn2_cats, num_extras, chunk_size, nopt_cards, going_2nd = args
+    deck_list, turn1_cats, turn2_cats, num_extras, chunk_size, nopt_cards, going_2nd = (
+        args
+    )
     deck = deck_list.copy()
     turn1_counters = {cat: 0 for cat in turn1_cats}
     turn2_counters = {cat: 0 for cat in turn2_cats}
@@ -300,8 +322,12 @@ def _run_chunk(args):
     for _ in range(chunk_size):
         hand, extras = _get_hand(deck, HAND_SIZE, num_extras)
         any_turn1 = False
+        # Going 2nd: draw cards are not used on turn 1 (opponent's turn)
+        t1_draw = not going_2nd
         for cat_name, possibilities in turn1_cats.items():
-            if _is_one_valid_draw(hand, extras, possibilities, True, True, True, True, True):
+            if _is_one_valid_draw(
+                hand, extras, possibilities, t1_draw, t1_draw, t1_draw, t1_draw, t1_draw
+            ):
                 turn1_counters[cat_name] += 1
                 any_turn1 = True
         any_valid = any_turn1
@@ -310,12 +336,17 @@ def _run_chunk(args):
             remaining_start = HAND_SIZE + num_extras
             if remaining_start < len(deck):
                 rand_idx = random.randint(remaining_start, len(deck) - 1)
-                deck[rand_idx], deck[remaining_start] = deck[remaining_start], deck[rand_idx]
+                deck[rand_idx], deck[remaining_start] = (
+                    deck[remaining_start],
+                    deck[rand_idx],
+                )
                 hand6 = hand + [deck[remaining_start]]
             else:
                 hand6 = hand
             for cat_name, possibilities in turn2_cats.items():
-                if _is_one_valid_draw(hand6, extras, possibilities, True, True, True, True, True):
+                if _is_one_valid_draw(
+                    hand6, extras, possibilities, True, True, True, True, True
+                ):
                     turn2_counters[cat_name] += 1
                     any_valid = True
         if any_valid:
@@ -494,7 +525,9 @@ def probability_calculator(args):
             if not strings:
                 continue
             asts = parse_possibilities(strings, f"{scenario_name}/{label}")
-            result[label] = [poss for ast in asts for poss in expand(ast, f"{scenario_name}/{label}")]
+            result[label] = [
+                poss for ast in asts for poss in expand(ast, f"{scenario_name}/{label}")
+            ]
         return result
 
     def fmt_cond(c):
@@ -521,14 +554,21 @@ def probability_calculator(args):
         going_2nd = scenario.get("going_2nd", False)
         hand_spec = scenario.get("hand") or {}
         turn1_cats = expand_turn_cats(hand_spec.get("turn_1"), scenario_name)
-        turn2_cats = expand_turn_cats(hand_spec.get("turn_2"), scenario_name) if going_2nd else {}
+        turn2_cats = (
+            expand_turn_cats(hand_spec.get("turn_2"), scenario_name)
+            if going_2nd
+            else {}
+        )
 
         if not turn1_cats and not turn2_cats:
             continue
 
         if args.verbose:
             print(f"\n  [{scenario_name}]:")
-            for turn_label_v, cats_v in [("turn_1", turn1_cats), ("turn_2", turn2_cats)]:
+            for turn_label_v, cats_v in [
+                ("turn_1", turn1_cats),
+                ("turn_2", turn2_cats),
+            ]:
                 if not cats_v:
                     continue
                 print(f"    {turn_label_v}:")
@@ -540,16 +580,18 @@ def probability_calculator(args):
         scenario_deck = deck_main.copy()
         side_spec = scenario.get("side")
         if side_spec:
-            for entry_str in (side_spec.get("out") or []):
+            for entry_str in side_spec.get("out") or []:
                 if entry_str:
                     e = _parse_deck_line(str(entry_str))
                     for _ in range(e.quantity):
                         try:
                             scenario_deck.remove(e.name)
                         except ValueError:
-                            print(f"[{scenario_name}] side out error: '{e.name}' not in deck")
+                            print(
+                                f"[{scenario_name}] side out error: '{e.name}' not in deck"
+                            )
                             sys.exit(0)
-            for entry_str in (side_spec.get("in") or []):
+            for entry_str in side_spec.get("in") or []:
                 if entry_str:
                     e = _parse_deck_line(str(entry_str))
                     scenario_deck = add_card(scenario_deck, e.name, e.quantity)
@@ -560,7 +602,15 @@ def probability_calculator(args):
             results = pool.map(
                 _run_chunk,
                 [
-                    (scenario_deck, turn1_cats, turn2_cats, num_extras, c, nopt_cards, going_2nd)
+                    (
+                        scenario_deck,
+                        turn1_cats,
+                        turn2_cats,
+                        num_extras,
+                        c,
+                        nopt_cards,
+                        going_2nd,
+                    )
                     for c in chunks
                 ],
             )
@@ -573,18 +623,24 @@ def probability_calculator(args):
 
         turn_label = "going 2nd" if going_2nd else "going 1st"
         side_label = ", after side" if side_spec else ""
-        print(f"\nHand of 5 ({scenario_name}{side_label}, {turn_label}):")
-        if going_2nd and turn2_cats:
+        print(f"\n{scenario_name}{side_label}, {turn_label}:")
+        if going_2nd:
             print("  Turn 1 (5 cards):")
             for cat_name, count in turn1_counters.items():
                 print(f"    [{cat_name}]: {count / num_trials * 100:.2f}%")
-            print("  Turn 2 (+1 draw):")
-            for cat_name, count in turn2_counters.items():
-                cond = f" ({count / counter_reached_turn2 * 100:.2f}% given T1 miss)" if counter_reached_turn2 else ""
-                print(f"    [{cat_name}]: {count / num_trials * 100:.2f}%{cond}")
+            if turn2_cats:
+                print("  Turn 2 (+1 draw):")
+                for cat_name, count in turn2_counters.items():
+                    cond = (
+                        f" ({count / counter_reached_turn2 * 100:.2f}% given T1 miss)"
+                        if counter_reached_turn2
+                        else ""
+                    )
+                    print(f"    [{cat_name}]: {count / num_trials * 100:.2f}%{cond}")
         else:
+            print("  Turn 1 (5 cards):")
             for cat_name, count in turn1_counters.items():
-                print(f"  [{cat_name}]: {count / num_trials * 100:.2f}%")
+                print(f"    [{cat_name}]: {count / num_trials * 100:.2f}%")
         print("  " + "-" * 20)
         if len(turn1_cats) + len(turn2_cats) > 1:
             print(f"  [total]: {counter_aggregate / num_trials * 100:.2f}%")

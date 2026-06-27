@@ -57,12 +57,30 @@ deck:
     - Cross-out 1
     - Droll 2 HT
     - D-fissure 1
-    - Purulia 3
-    - Duster 1
-    - Evenly 3
+    - Purulia 3 HT
+    - Duster 1 BB
+    - Evenly 3 BB NOPT
 
-# Category are collection of hands, where you can put here to later be used
-# in hand section as reference
+# - Category are collection of hands, where you can put here to later be used
+#   in hand section as reference
+# - List your acceptable combinations of cards in hand using named categories.
+# - Each key under hand is a category name (e.g. all, standard, anti-droll).
+# - Probabilities are shown per category, then an aggregate (any category matched).
+# - Each entry represents the hand combination, and
+#   has the following syntax:
+#   < amount > < + or - or = > < card-name > < AND/OR > < category > < COMB(category) > ...
+# - .e.g: 2 + A AND 1 - B AND 0 = C
+#    means `2 or more of A, 1 or fewer of B, exactly 0 of C`
+# - + or = when used with a group that is larger than 2 (for example 2 + HT), it will consider
+#   the success as having 2 or more different card in that group (.e.g: 2 Ash is not success,
+#   1 Ash 1 Belle is considered success, 2 Imperm is considered success since it is NOPT)
+# - if the amount is 1 or more, you can skip it.
+#   .e.g: `Ichiki AND Elis` is equivalent to `1 + Ichiki AND 1 + Elis`
+# - COMB(cat-a, cat-b) generates every unique pair of hands from two categories.
+#   Conditions shared between the two picked hands are merged into one.
+#   .e.g: COMB(0-ht, 0-ht) means "two distinct 0-ht hand combinations"
+#   You can pass more than two categories: COMB(0-ht, 0-ht, 0-ht)
+# - Grouping for OR can be made using bracket ()
 category:
   1cc:
     - Martha
@@ -82,7 +100,9 @@ category:
     - 1cc
     - 2cc
   0-ht:
-    - engine-combo
+    - weak
+    - 1cc
+    - 2cc
   1-ht:
     - COMB(1cc, 1cc)
     - Martha AND (Elis OR Stella OR Ichiki)
@@ -96,29 +116,18 @@ category:
   nib-cat:
     - Betrayal AND (Name OR Pax OR Ichiki)
 
-# - List your acceptable combinations of cards in hand using named categories.
-# - Each key under hand is a category name (e.g. all, standard, anti-droll).
-# - Probabilities are shown per category, then an aggregate (any category matched).
-# - Each entry represents the hand combination, and
-#   has the following syntax:
-#   < amount > < + or - or = > < card-name > < AND/OR > < category > < COMB(category) > ...
-# - .e.g: 2 + A AND 1 - B AND 0 = C
-#    means `2 or more of A, 1 or fewer of B, exactly 0 of C`
-# - if the amount is 1 or more, you can skip it.
-#   .e.g: `Ichiki AND Elis` is equivalent to `1 + Ichiki AND 1 + Elis`
-# - COMB(cat-a, cat-b) generates every unique pair of hands from two categories.
-#   Conditions shared between the two picked hands are merged into one.
-#   .e.g: COMB(0-ht, 0-ht) means "two distinct 0-ht hand combinations"
-#   You can pass more than two categories: COMB(0-ht, 0-ht, 0-ht)
-# - Grouping for OR can be made using bracket ()
+# List your scenario under the [hand] section
 hand:
   # These are the base cases, for game 1 when you have no side deck yet
   game_1_1st:
-    hand:
+    hand: # By default, each hand will be considered going 1st, with 5 card hand
       turn_1:
         playable:
           - 0-ht
           - sakitama-cat
+        optimal:
+          - (engine-combo OR sakitama-cat) AND (Thrust OR Called-by)
+          - (COMB(1cc, 2cc) OR COMB(1cc, sakitama-cat) OR COMB(1cc, weak) OR COMB(1cc, 1cc)) AND 2 + NE
         droll:
           - droll-cat
         nib:
@@ -126,17 +135,20 @@ hand:
         charmies:
           - charmies-cat
   game_1_2nd:
+    # When going 2nd, your probabilities can now contain turn_1 and turn_2 hand separately.
+    # Turn_1 will contains your first 5 card drawn
+    # Turn 2 probablities is only considered when you failed the turn_1 draw
     going_2nd: true
     hand:
       turn_1:
         playable:
           - 0-ht
           - sakitama-cat
-        decent:
-          - 0-ht AND (Fuwalos OR HT)
+        optimal:
+          - 0-ht AND ((Fuwalos AND HT) OR 2 + HT) # For example you only want to calculate chance of drawing Fuwalos + HT turn 1
       turn_2:
         playable:
-          - 0-ht
+          - 1-ht
   # This case illustrate for when we side in new cards
   # and have new hand combination that we want to calculate
   # In this case we added D-fissure, Cross-out and Carpedivem,
@@ -183,10 +195,10 @@ hand:
     hand:
       turn_1:
         optimal:
-          - 0-ht AND (Evenly OR Duster OR Fuwalos)
+          - 0-ht AND (1 + BB OR Fuwalos)
       turn_2:
         optimal:
-          - 0-ht AND (Evenly OR Duster)
+          - 0-ht AND 1 + BB
   side_going_2nd_ht:
     going_2nd: true
     side:
@@ -196,9 +208,9 @@ hand:
         - Talent 1
         - Sakitama 1
     hand:
+      # In this case, even though we go 2nd, assuming that we will just auto-lose
+      # if we cannot handtrap our opponent, we only care about getting HT on the
+      # turn_1 hand
       turn_1:
         with_ht:
-          - 0-ht AND HT
-      turn_2:
-        standard:
-          - 1-ht
+          - 0-ht AND 2 + HT
