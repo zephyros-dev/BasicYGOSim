@@ -369,8 +369,17 @@ def probability_calculator(args):
             num_extras += e.quantity
         register_card(e)
 
+    side_count = 0
     for e in [_parse_deck_line(line) for line in deck_file["deck"].get("side", [])]:
         register_card(e)
+        side_count += e.quantity
+
+    if not (40 <= deck_count <= 60):
+        print(f"Main deck must be 40-60 cards (got {deck_count})")
+        sys.exit(0)
+    if side_count > 15:
+        print(f"Side deck must be at most 15 cards (got {side_count})")
+        sys.exit(0)
 
     if "Prosperity" in deck_main or "Extravagance" in deck_main:
         num_extras += 6
