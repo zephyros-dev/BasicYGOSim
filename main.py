@@ -289,20 +289,35 @@ def _is_one_valid_draw(
 
 
 def _run_chunk(args):
-    deck_list, hand_size, categories, num_extras, chunk_size, nopt_cards = args
+    deck_list, turn1_cats, turn2_cats, num_extras, chunk_size, nopt_cards, going_2nd = args
     deck = deck_list.copy()
-    cat_counters = {cat: 0 for cat in categories}
+    turn1_counters = {cat: 0 for cat in turn1_cats}
+    turn2_counters = {cat: 0 for cat in turn2_cats}
     aggregate = 0
     dup_counter = 0
+    reached_turn2 = 0
+    HAND_SIZE = 5
     for _ in range(chunk_size):
-        hand, extras = _get_hand(deck, hand_size, num_extras)
-        any_valid = False
-        for cat_name, possibilities in categories.items():
-            if _is_one_valid_draw(
-                hand, extras, possibilities, True, True, True, True, True
-            ):
-                cat_counters[cat_name] += 1
-                any_valid = True
+        hand, extras = _get_hand(deck, HAND_SIZE, num_extras)
+        any_turn1 = False
+        for cat_name, possibilities in turn1_cats.items():
+            if _is_one_valid_draw(hand, extras, possibilities, True, True, True, True, True):
+                turn1_counters[cat_name] += 1
+                any_turn1 = True
+        any_valid = any_turn1
+        if going_2nd and not any_turn1 and turn2_cats:
+            reached_turn2 += 1
+            remaining_start = HAND_SIZE + num_extras
+            if remaining_start < len(deck):
+                rand_idx = random.randint(remaining_start, len(deck) - 1)
+                deck[rand_idx], deck[remaining_start] = deck[remaining_start], deck[rand_idx]
+                hand6 = hand + [deck[remaining_start]]
+            else:
+                hand6 = hand
+            for cat_name, possibilities in turn2_cats.items():
+                if _is_one_valid_draw(hand6, extras, possibilities, True, True, True, True, True):
+                    turn2_counters[cat_name] += 1
+                    any_valid = True
         if any_valid:
             aggregate += 1
         if any(
@@ -311,7 +326,7 @@ def _run_chunk(args):
             if c != "blank" and c not in nopt_cards
         ):
             dup_counter += 1
-    return cat_counters, aggregate, dup_counter
+    return turn1_counters, turn2_counters, aggregate, dup_counter, reached_turn2
 
 
 def probability_calculator(args):
@@ -325,11 +340,13 @@ def probability_calculator(args):
             deck.append(name)
         return deck
 
-    def remove_card(deck, name, quantity):
-        for _ in range(quantity):
-            deck.remove(name)
-            deck.append("blank")
-        return deck
+    def register_card(e):
+        if e.name not in card_hash:
+            for tag in e.tags:
+                if tag not in all_cats:
+                    all_cats.append(tag)
+            all_cats.append(e.name)
+            card_hash[e.name] = [e.name] + e.tags
 
     card_hash = {}
     deck_main = []
@@ -350,20 +367,10 @@ def probability_calculator(args):
             nopt_cards.add(e.name)
         if e.name == "Upstart":
             num_extras += e.quantity
-        all_cats.append(e.name)
-        for tag in e.tags:
-            if tag not in all_cats:
-                all_cats.append(tag)
-        card_hash[e.name] = [e.name] + e.tags
+        register_card(e)
 
-    side_replace_list = deck_file["deck"].get("side_replace", [])
-    deck_side = deck_main.copy()
-    for e in [_parse_deck_line(line) for line in side_replace_list]:
-        try:
-            deck_side = remove_card(deck_side, e.name, e.quantity)
-        except ValueError:
-            print(f"Side deck error: '{e.name}' not found in main deck")
-            sys.exit(0)
+    for e in [_parse_deck_line(line) for line in deck_file["deck"].get("side", [])]:
+        register_card(e)
 
     if "Prosperity" in deck_main or "Extravagance" in deck_main:
         num_extras += 6
@@ -373,19 +380,18 @@ def probability_calculator(args):
         num_extras += 2
 
     ref_section = deck_file.get("category", {})
-    category_names = set(deck_file["hand"].keys()) | set(ref_section.keys())
+    category_names = set(ref_section.keys())
 
     def parse_possibilities(text_possibilities, cat_name):
         return [
-            _parse(_tokenize(p), cat_name, p, category_names, all_cats)
+            _parse(_tokenize(str(p)), cat_name, str(p), category_names, all_cats)
             for p in text_possibilities
             if p
         ]
 
-    # ref_section entries come first so they are expanded before hand entries reference them
     raw_asts = {
         cat_name: parse_possibilities(text_possibilities, cat_name)
-        for cat_name, text_possibilities in {**ref_section, **deck_file["hand"]}.items()
+        for cat_name, text_possibilities in ref_section.items()
     }
 
     def _has_hand_catref(node):
@@ -415,15 +421,12 @@ def probability_calculator(args):
         result = []
         for combo in product(*sources):
             poss_keys = [frozenset(tuple(c) for c in poss) for poss in combo]
-            # Skip entirely identical picks (e.g. same entry picked from both sources)
             if any(
                 poss_keys[i] == poss_keys[j]
                 for i in range(len(poss_keys))
                 for j in range(i + 1, len(poss_keys))
             ):
                 continue
-            # Deduplicate conditions across picks (partial overlaps are allowed;
-            # shared conditions appear once in the merged result)
             seen_conds = set()
             merged = []
             for poss in combo:
@@ -450,9 +453,6 @@ def probability_calculator(args):
             for alt in node.alts:
                 result.extend(expand(alt, cat_name))
             return result
-        # _And: cartesian product. Skip when merged result contains any duplicate
-        # condition (e.g. same card constraint required by two parts), and
-        # deduplicate symmetric results via seen set.
         expanded_parts = [expand(p, cat_name) for p in node.parts]
         seen = set()
         result = []
@@ -479,19 +479,22 @@ def probability_calculator(args):
     for cat_name, asts in raw_asts.items():
         expanded[cat_name] = [poss for ast in asts for poss in expand(ast, cat_name)]
 
-    hand_names = set(deck_file["hand"].keys())
-    categories = {k: v for k, v in expanded.items() if k in hand_names}
+    def expand_turn_cats(turn_dict, scenario_name):
+        result = {}
+        for label, strings in (turn_dict or {}).items():
+            if not strings:
+                continue
+            asts = parse_possibilities(strings, f"{scenario_name}/{label}")
+            result[label] = [poss for ast in asts for poss in expand(ast, f"{scenario_name}/{label}")]
+        return result
+
+    def fmt_cond(c):
+        card, minimum, sign = c
+        return card if (minimum == 1 and sign == "+") else f"{minimum} {sign} {card}"
 
     if args.verbose:
-
-        def fmt_cond(c):
-            card, minimum, sign = c
-            return (
-                card if (minimum == 1 and sign == "+") else f"{minimum} {sign} {card}"
-            )
-
         print("\nResolved hand possibilities:")
-        for cat_name, possibilities in categories.items():
+        for cat_name, possibilities in expanded.items():
             print(f"\n  [{cat_name}]:")
             for poss in possibilities:
                 print("    " + " AND ".join(fmt_cond(c) for c in poss))
@@ -500,40 +503,81 @@ def probability_calculator(args):
     if nopt_count:
         print(f"Non-opt card ratio is: {nopt_count}/{deck_count}")
 
-    if "main_side_number" not in deck_file["deck"]:
-        main_side_hand_amount = [5, 6]
-    else:
-        main_side_hand_amount = deck_file["deck"]["main_side_number"]
-
     num_workers = multiprocessing.cpu_count()
     base_chunk = num_trials // num_workers
     chunks = [base_chunk] * num_workers
     chunks[-1] += num_trials - base_chunk * num_workers
 
-    for hand_size, turn, deck_list in [
-        [main_side_hand_amount[0], "main deck", deck_main],
-        [main_side_hand_amount[1], "side deck", deck_side],
-    ]:
+    for scenario_name, scenario in deck_file.get("hand", {}).items():
+        going_2nd = scenario.get("going_2nd", False)
+        hand_spec = scenario.get("hand") or {}
+        turn1_cats = expand_turn_cats(hand_spec.get("turn_1"), scenario_name)
+        turn2_cats = expand_turn_cats(hand_spec.get("turn_2"), scenario_name) if going_2nd else {}
+
+        if not turn1_cats and not turn2_cats:
+            continue
+
+        if args.verbose:
+            print(f"\n  [{scenario_name}]:")
+            for turn_label_v, cats_v in [("turn_1", turn1_cats), ("turn_2", turn2_cats)]:
+                if not cats_v:
+                    continue
+                print(f"    {turn_label_v}:")
+                for label, possibilities in cats_v.items():
+                    print(f"      [{label}]:")
+                    for poss in possibilities:
+                        print("        " + " AND ".join(fmt_cond(c) for c in poss))
+
+        scenario_deck = deck_main.copy()
+        side_spec = scenario.get("side")
+        if side_spec:
+            for entry_str in (side_spec.get("out") or []):
+                if entry_str:
+                    e = _parse_deck_line(str(entry_str))
+                    for _ in range(e.quantity):
+                        try:
+                            scenario_deck.remove(e.name)
+                        except ValueError:
+                            print(f"[{scenario_name}] side out error: '{e.name}' not in deck")
+                            sys.exit(0)
+            for entry_str in (side_spec.get("in") or []):
+                if entry_str:
+                    e = _parse_deck_line(str(entry_str))
+                    scenario_deck = add_card(scenario_deck, e.name, e.quantity)
+
         with multiprocessing.Pool(
             num_workers, initializer=_pool_init, initargs=(card_hash,)
         ) as pool:
             results = pool.map(
                 _run_chunk,
                 [
-                    (deck_list, hand_size, categories, num_extras, c, nopt_cards)
+                    (scenario_deck, turn1_cats, turn2_cats, num_extras, c, nopt_cards, going_2nd)
                     for c in chunks
                 ],
             )
 
-        cat_counters = {cat: sum(r[0][cat] for r in results) for cat in categories}
-        counter_aggregate = sum(r[1] for r in results)
-        counter_dup = sum(r[2] for r in results)
+        turn1_counters = {cat: sum(r[0][cat] for r in results) for cat in turn1_cats}
+        turn2_counters = {cat: sum(r[1][cat] for r in results) for cat in turn2_cats}
+        counter_aggregate = sum(r[2] for r in results)
+        counter_dup = sum(r[3] for r in results)
+        counter_reached_turn2 = sum(r[4] for r in results)
 
-        print(f"\nHand of {hand_size} ({turn}):")
-        for cat_name, count in cat_counters.items():
-            print(f"  [{cat_name}]: {count / num_trials * 100:.2f}%")
+        turn_label = "going 2nd" if going_2nd else "going 1st"
+        side_label = ", after side" if side_spec else ""
+        print(f"\nHand of 5 ({scenario_name}{side_label}, {turn_label}):")
+        if going_2nd and turn2_cats:
+            print("  Turn 1 (5 cards):")
+            for cat_name, count in turn1_counters.items():
+                print(f"    [{cat_name}]: {count / num_trials * 100:.2f}%")
+            print("  Turn 2 (+1 draw):")
+            for cat_name, count in turn2_counters.items():
+                cond = f" ({count / counter_reached_turn2 * 100:.2f}% given T1 miss)" if counter_reached_turn2 else ""
+                print(f"    [{cat_name}]: {count / num_trials * 100:.2f}%{cond}")
+        else:
+            for cat_name, count in turn1_counters.items():
+                print(f"  [{cat_name}]: {count / num_trials * 100:.2f}%")
         print("  " + "-" * 20)
-        if len(categories) > 1:
+        if len(turn1_cats) + len(turn2_cats) > 1:
             print(f"  [total]: {counter_aggregate / num_trials * 100:.2f}%")
         print(f"  [no-dup]: {(num_trials - counter_dup) / num_trials * 100:.2f}%")
 

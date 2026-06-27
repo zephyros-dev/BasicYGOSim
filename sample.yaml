@@ -1,6 +1,5 @@
 # The file format is yaml, you can use # before each line for comment, or quick
 # trial of each entry
-
 deck:
   # - The main field is for the list of cards that are used in your deck
   # - The format of each entry is as following:
@@ -31,46 +30,71 @@ deck:
   #     (.e.g: Sky Striker Engage, Infinite Impermanence) since you can use multiple
   #     in a single turn
   main:
-    - "Martha 3 Name"
-    - "Elis 3 Name"
-    - "Stella 2 Exo Name"
-    - "Sophia 2 Exo Name"
-    - "Irene 1 Exo Name"
-    - "Ichiki 3"
-    - "Pax 3"
-    - "Betrayal 3"
-    - "Returnia 1"
-    - "Vadis 1"
-    - "Shifter 1 NE"
-    - "Ash 3 NE"
-    - "Nib 1 NE"
-    - "Thrust 1 NE"
-    - "Talent 1 NE"
-    - "Called-by 1 NE"
-    - "Fuwalos 3 NE"
-    # - "FnV 3 NE"
-    - "Imperm 3 NE NOPT"
-    - "Forbidden-crown 3 NE"
-    - "Sakitama 1"
-
-  # These cards are replaced by NE card when side decking,
-  # this is to check for consistency after siding out engine cards.
-  # This field is optional
-  side_replace:
-    - "Sakitama 1"
-
-  # Hand counts for main deck and side decking,
-  # for blind 2nd deck you can use [6, 6]
-  # This field is optional
-  main_side_number: [5, 6]
+    - Martha 3 Name
+    - Elis 3 Name
+    - Stella 2 Exo Name
+    - Sophia 2 Exo Name
+    - Irene 1 Exo Name
+    - Ichiki 3
+    - Pax 3
+    - Betrayal 3
+    - Returnia 1
+    - Vadis 1
+    - Shifter 1 NE HT
+    - Ash 3 NE HT
+    - Nib 1 NE HT
+    - Thrust 1 NE
+    - Talent 1 NE
+    - Called-by 1 NE
+    - Fuwalos 3 NE HT
+    - Imperm 3 NE NOPT HT
+    - Forbidden-crown 3 NE
+    - Sakitama 1
+  side:
+    - Solemn-accu 2 Solemn
+    - Solemn-judge 1 Solemn
+    - Carpedivem 1
+    - Cross-out 1
+    - Droll 2 HT
+    - D-fissure 1
+    - Purulia 3
+    - Duster 1
+    - Evenly 3
 
 # Category are collection of hands, where you can put here to later be used
-# in hand as reference
+# in hand section as reference
 category:
   1cc:
     - Martha
     - Pax
     - Betrayal
+  sakitama-cat:
+    - Sakitama AND Exo
+    - Sakitama AND Fuwalos
+  weak:
+    - Elis AND Exo
+    - Stella AND Exo
+  2cc:
+    - Ichiki AND Exo
+    - Ichiki AND Elis
+  engine-combo:
+    - weak
+    - 1cc
+    - 2cc
+  0-ht:
+    - engine-combo
+  1-ht:
+    - COMB(1cc, 1cc)
+    - Martha AND (Elis OR Stella OR Ichiki)
+    - 0-ht AND (Thrust OR Called-by OR Talent)
+  droll-cat:
+    - 0-ht AND (Thrust OR Called-by OR Shifter)
+    - Pax AND (Betrayal OR Martha)
+    - Martha AND (Exo OR Sakitama) AND Ichiki
+  charmies-cat:
+    - 0-ht AND (Called-by OR Ash)
+  nib-cat:
+    - Betrayal AND (Name OR Pax OR Ichiki)
 
 # - List your acceptable combinations of cards in hand using named categories.
 # - Each key under hand is a category name (e.g. all, standard, anti-droll).
@@ -88,28 +112,93 @@ category:
 #   You can pass more than two categories: COMB(0-ht, 0-ht, 0-ht)
 # - Grouping for OR can be made using bracket ()
 hand:
-  weak:
-    - "Sakitama AND Exo"
-    - "Sakitama AND Fuwalos"
-    - "Elis AND Exo"
-
-  0-ht:
-    - 1cc
-    - "Ichiki AND Exo"
-    - "Ichiki AND Elis"
-
-  1-ht:
-    - "COMB(1cc, 1cc)"
-    - "Martha AND (Elis OR Stella OR Ichiki)"
-    - "0-ht AND (Thrust OR Called-by OR Talent)"
-
-  droll:
-    - "0-ht AND (Thrust OR Called-by OR Shifter)"
-    - "Pax AND (Betrayal OR Martha)"
-    - "Martha AND (Exo OR Sakitama) AND Ichiki"
-
-  charmies:
-    - "0-ht AND (Called-by OR Ash)"
-
-  nib:
-    - "Betrayal AND (Name OR Pax OR Ichiki)"
+  # These are the base cases, for game 1 when you have no side deck yet
+  game_1_1st:
+    hand:
+      turn_1:
+        playable:
+          - 0-ht
+          - sakitama-cat
+        droll:
+          - droll-cat
+        nib:
+          - nib-cat
+        charmies:
+          - charmies-cat
+  game_1_2nd:
+    going_2nd: true
+    hand:
+      turn_1:
+        playable:
+          - 0-ht
+          - sakitama-cat
+        decent:
+          - 0-ht AND (Fuwalos OR HT)
+      turn_2:
+        playable:
+          - 0-ht
+  # This case illustrate for when we side in new cards
+  # and have new hand combination that we want to calculate
+  # In this case we added D-fissure, Cross-out and Carpedivem,
+  # which can also counter droll
+  side_going_1st:
+    side:
+      in:
+        - Solemn-accu 2
+        - Solemn-judge 1
+        - D-fissure 1
+        - Cross-out 1
+        - Droll 2
+        - Carpedivem 1
+      out:
+        - Fuwalos 3
+        - Nib 1
+        - Forbidden-crown 3
+        - Sakitama 1
+    hand:
+      turn_1:
+        standard:
+          - engine-combo
+        droll:
+          - Martha AND Carpedivem
+          - Elis AND Exo AND Carpedivem
+          - 0-ht AND (D-fissure OR (Cross-out AND 1 - Droll))
+          - droll-cat
+        nib:
+          - Martha AND Carpedivem
+          - Betrayal AND Carpedivem
+          - nib-cat
+  # This hand is example for calculating the chance of drawing Fuwalos on
+  # turn 1 going 2nd, not turn 2
+  side_going_2nd_bb:
+    going_2nd: true
+    side:
+      in:
+        - Evenly 3
+        - Duster 1
+      out:
+        - Nib 1
+        - Sakitama 1
+        - Forbidden-crown 2
+    hand:
+      turn_1:
+        optimal:
+          - 0-ht AND (Evenly OR Duster OR Fuwalos)
+      turn_2:
+        optimal:
+          - 0-ht AND (Evenly OR Duster)
+  side_going_2nd_ht:
+    going_2nd: true
+    side:
+      in:
+        - Droll 2
+      out:
+        - Talent 1
+        - Sakitama 1
+    hand:
+      turn_1:
+        with_ht:
+          - 0-ht AND HT
+      turn_2:
+        standard:
+          - 1-ht
