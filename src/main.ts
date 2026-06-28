@@ -43,7 +43,7 @@ const darkMagicianTheme = EditorView.theme({
   '.cm-gutters': { backgroundColor: '#130828', color: '#5b3a8a', border: 'none', borderRight: '1px solid #3b1f6b' },
   '.cm-activeLineGutter': { backgroundColor: '#2d125066' },
   '.cm-activeLine': { backgroundColor: '#2d125044' },
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': { backgroundColor: '#3d187066' },
+  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': { backgroundColor: '#3d187066 !important' },
   '&.cm-focused .cm-cursor': { borderLeftColor: '#a855f7' },
   '.cm-matchingBracket': { backgroundColor: '#3d187066', color: '#e9d5ff !important' },
   '.cm-tooltip': { backgroundColor: '#1a0a2e', border: '1px solid #3b1f6b', color: '#e9d5ff' },
@@ -80,7 +80,7 @@ const blueEyesTheme = EditorView.theme({
   '.cm-gutters': { backgroundColor: '#e4ecff', color: '#6b8cbe', border: 'none', borderRight: '1px solid #b8ceff' },
   '.cm-activeLineGutter': { backgroundColor: '#d5e3ff' },
   '.cm-activeLine': { backgroundColor: '#e0e9ff' },
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': { backgroundColor: '#c5d3f5' },
+  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': { backgroundColor: '#c5d3f5 !important' },
   '&.cm-focused .cm-cursor': { borderLeftColor: '#1d6ed8' },
   '.cm-matchingBracket': { backgroundColor: '#c5d3f5', color: '#0f2447 !important' },
   '.cm-tooltip': { backgroundColor: '#eef2ff', border: '1px solid #b8ceff', color: '#0f2447' },
@@ -417,6 +417,13 @@ btnImport.onclick = importDecks;
 btnDelete.onclick = deleteCurrent;
 btnExpand.onclick = expandHands;
 btnRun.onclick    = runSim;
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !btnRun.hasAttribute('disabled')) {
+    e.preventDefault();
+    runSim();
+  }
+});
 
 // ── Init ──────────────────────────────────────────────────────
 const saved = loadDecks();

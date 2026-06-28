@@ -198,6 +198,14 @@ body {
   color: var(--text);
 }
 
+/* ── CodeMirror selection fallback ───────────────────
+   CM6's drawSelection hides native ::selection with !important.
+   Using an attribute selector gives us higher specificity to
+   restore a visible colour when the div-based selection fails
+   (e.g. single-word double-click selections). */
+[data-theme="light"] .cm-content ::selection { background-color: #c5d3f5 !important; }
+[data-theme="dark"]  .cm-content ::selection { background-color: #3d1870   !important; }
+
 /* ── Buttons ──────────────────────────────────────── */
 .btn {
   display: inline-flex;

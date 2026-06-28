@@ -1,3 +1,22 @@
+# ── Introduction ──────────────────────────────────────────────────────────
+#
+# YGOProb is a Yu-Gi-Oh! deck consistency estimator.
+#
+# Aim
+#   Building a competitive YGO deck involves many decisions: how many copies
+#   of each card to run, which hand traps to include, how many non-engine to
+#   add. YGOProb helps you answer those questions with numbers.
+#
+#   Write your deck and hand conditions in this YAML file, then hit Run.
+#   The simulator draws hundred thousands of opening hands and tells you exactly
+#   how often each of your hand suceed — going 1st or 2nd, game 1 or after siding.
+#
+#   Use it to:
+#   - Compare "3 copies vs 2 copies"
+#   - See how much consistency you lose by adding non-engine
+#   - Measure the impact of side deck choices on your hand
+#   - Identify how often a hand has duplicates (bricks)
+#
 # ── Website usage ──────────────────────────────────────────────────────────
 #
 # Toolbar (top bar)
@@ -5,6 +24,7 @@
 #   Trials    Number of Monte Carlo iterations (higher = more accurate, slower)
 #   [Expand]  Resolve and print all hand conditions without running simulation
 #   [▶ Run]   Run the simulation and display hit rates in the results panel
+#             Shortcut: Ctrl+Enter (Cmd+Enter on Mac)
 #
 # Sidebar (left panel)
 #   [+ New]   Open a blank deck pre-filled with a template
@@ -17,6 +37,24 @@
 # Editor (left pane)
 #   Edit your deck YAML directly. The format is documented in the comments
 #   at the top of this file. Changes are not saved until you click Save.
+#
+#   Keyboard shortcuts (Win/Linux | Mac)
+#   ── Simulation ────────────────────────────────────
+#   Ctrl+Enter          Cmd+Enter       Run simulation
+#   ── Editing ───────────────────────────────────────
+#   Ctrl+Z              Cmd+Z           Undo
+#   Ctrl+Y / Ctrl+Shift+Z  Cmd+Shift+Z Redo
+#   Ctrl+/              Cmd+/           Toggle line comment
+#   Tab / Shift+Tab     Tab / Shift+Tab Indent / dedent
+#   Alt+Up / Alt+Down   Alt+Up / Alt+Down  Move line up / down
+#   Ctrl+Shift+K        Cmd+Shift+K     Delete line
+#   ── Search ────────────────────────────────────────
+#   Ctrl+F              Cmd+F           Find
+#   Ctrl+H              Cmd+Alt+F       Find and replace
+#   Ctrl+D              Cmd+D           Select next occurrence
+#   ── Folding ───────────────────────────────────────
+#   Ctrl+Shift+[        Cmd+Alt+[       Fold block
+#   Ctrl+Shift+]        Cmd+Alt+]       Unfold block
 #
 # Deck name bar
 #   Edit the deck name in the text field, then click [Save] to persist it
@@ -154,12 +192,24 @@ hand:
   game_1_1st:
     hand: # By default hand is going 1st, with 5 card
       turn_1:
+        # We added hands that can build a board here without HT from
+        # opponent. This is mostly for knowing how much we brick,
+        # and usually already includes combo that are more specific
+        # below
         playable:
           - engine-combo
           - sakitama-combo
+        # These are the optimal hand that we want to draw, that both
+        # have cards that insulate our plays, or help us play through
+        # HT. Since these usually includes non-engine, there will be
+        # a trade-of between helping our hand go 1st and 2nd in game 1
         optimal:
           - (engine-combo OR sakitama-combo) AND (Thrust OR Called-by)
           - (COMB(1cc, 2cc) OR COMB(1cc, sakitama-combo) OR COMB(1cc, weak) OR COMB(1cc, 1cc)) AND 2 + NE
+        # We have each group of hand that can play against a specific HT
+        # Use this to check if you have enough chance to draw the hand
+        # that can win VS these HT. Usually you want it to at least be
+        # higher than the chance of your opponent drawing them
         vs-droll:
           - droll-cat
         vs-nib:
@@ -230,7 +280,7 @@ hand:
     hand:
       turn_1:
         optimal:
-          - engine-combo AND (2 + BB OR Fuwalos)
+          - engine-combo AND Fuwalos
       turn_2:
         optimal:
           - engine-combo AND 2 + BB
