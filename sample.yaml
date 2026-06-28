@@ -23,8 +23,9 @@
 #   [Theme]   Toggle between Dark Magician (dark) and Blue-Eyes (light) theme
 #   Trials    Number of Monte Carlo iterations (higher = more accurate, slower)
 #   [Expand]  Resolve and print all hand conditions without running simulation
+#             Shortcut: Ctrl+E (Cmd+E on Mac)
 #   [▶ Run]   Run the simulation and display hit rates in the results panel
-#             Shortcut: Ctrl+Enter (Cmd+Enter on Mac)
+#             Shortcut: Ctrl+Shift+Enter (Cmd+Shift+Enter on Mac)
 #
 # Sidebar (left panel)
 #   [+ New]   Open a blank deck pre-filled with a template
@@ -40,7 +41,8 @@
 #
 #   Keyboard shortcuts (Win/Linux | Mac)
 #   ── Simulation ────────────────────────────────────
-#   Ctrl+Enter          Cmd+Enter       Run simulation
+#   Ctrl+Shift+Enter    Cmd+Shift+Enter Run simulation
+#   Ctrl+E              Cmd+E           Expand hands
 #   ── Editing ───────────────────────────────────────
 #   Ctrl+Z              Cmd+Z           Undo
 #   Ctrl+Y / Ctrl+Shift+Z  Cmd+Shift+Z Redo

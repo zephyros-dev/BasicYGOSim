@@ -127,11 +127,10 @@ try {
         yaml(),
         themeCompartment.of(isDark ? darkExts : lightExts),
         EditorView.lineWrapping,
-        keymap.of([{
-          key: 'Ctrl-Enter',
-          mac: 'Cmd-Enter',
-          run: () => { runSim(); return true; },
-        }]),
+        keymap.of([
+          { key: 'Ctrl-Shift-Enter', mac: 'Cmd-Shift-Enter', run: () => { runSim(); return true; } },
+          { key: 'Ctrl-e',           mac: 'Cmd-e',           run: () => { expandHands(); return true; } },
+        ]),
       ],
     }),
     parent: editorContainer,
@@ -419,9 +418,13 @@ btnExpand.onclick = expandHands;
 btnRun.onclick    = runSim;
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !btnRun.hasAttribute('disabled')) {
+  if (e.key === 'Enter' && e.shiftKey && (e.ctrlKey || e.metaKey) && !btnRun.hasAttribute('disabled')) {
     e.preventDefault();
     runSim();
+  }
+  if (e.key === 'e' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+    e.preventDefault();
+    expandHands();
   }
 });
 
