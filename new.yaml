@@ -1,0 +1,57 @@
+deck:
+  main:
+    - card-a 1
+    - card-b 2
+  side:
+    - card-c 3
+    - card-d 1
+category:
+  1cc:
+    - card-a
+  2cc:
+    - card-c AND card-d
+hand:
+  game_1_1st:
+    hand:
+      turn_1:
+        playable:
+          - 1cc
+        optimal:
+          - 1cc
+  game_1_2nd:
+    going_2nd: true
+    hand:
+      turn_1:
+        optimal:
+          - 1cc
+      turn_2:
+        playable:
+          - 1cc
+  side_going_1st:
+    side:
+      in:
+        - card-c 1
+        - card-d 1
+      out:
+        - card-a 1
+        - card-b 1
+    hand:
+      turn_1:
+        optimal:
+          - 1cc
+  side_going_2nd:
+    going_2nd: true
+    side:
+      in:
+        - card-c 1
+        - card-d 1
+      out:
+        - card-a 1
+        - card-b 1
+    hand:
+      turn_1:
+        optimal:
+          - 1cc
+      turn_2:
+        optimal:
+          - 1cc

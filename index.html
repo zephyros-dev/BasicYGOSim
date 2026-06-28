@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YGOProb</title>
+  <!-- Set theme before CSS renders to avoid flash -->
+  <script>
+    (function(){
+      var s = localStorage.getItem('ygoprob_theme');
+      var d = s ? s === 'dark' : !window.matchMedia('(prefers-color-scheme: light)').matches;
+      document.documentElement.dataset.theme = d ? 'dark' : 'light';
+    })();
+  </script>
+</head>
+<body>
+  <div id="toolbar">
+    <span id="logo">YGOProb</span>
+    <div class="spacer"></div>
+    <button id="btn-theme" class="btn btn-sm btn-icon"></button>
+    <label id="trials-label">Trials:</label>
+    <input id="trials-input" type="number" value="100000" min="1000" step="10000" />
+    <button id="btn-expand" class="btn btn-sm" title="Show expanded hand conditions for each scenario without simulating">Expand</button>
+    <button id="btn-run" class="btn btn-primary" title="Run Monte Carlo simulation">&#9654; Run</button>
+  </div>
+  <div id="main">
+    <aside id="sidebar">
+      <div id="sidebar-header">Saved Decks</div>
+      <div id="sidebar-actions">
+        <button id="btn-new" class="btn btn-sm" title="Create a new deck from template">+ New</button>
+        <button id="btn-sample" class="btn btn-sm" title="Load the built-in sample deck">Sample</button>
+        <button id="btn-export" class="btn btn-sm" title="Export all saved decks as a zip">Export</button>
+        <button id="btn-import" class="btn btn-sm" title="Import decks from a zip file">Import</button>
+        <button id="btn-delete" class="btn btn-sm btn-danger" title="Delete the current deck">Delete</button>
+      </div>
+      <div id="deck-list"></div>
+    </aside>
+    <div id="panel">
+      <div id="deck-name-bar">
+        <input id="deck-name" type="text" placeholder="Deck name…" />
+        <button id="btn-save" class="btn btn-sm" title="Save the current deck">Save</button>
+      </div>
+      <div id="split-pane">
+        <div id="editor-container"></div>
+        <div id="resizer"></div>
+        <div id="results-panel">
+          <div id="results-toolbar">
+            <span id="results-label">Results</span>
+            <div class="spacer"></div>
+            <span id="status-msg"></span>
+          </div>
+          <pre id="results"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+  <script>
+    window.addEventListener('error', function(e) {
+      document.body.insertAdjacentHTML('beforeend',
+        '<div style="position:fixed;top:0;left:0;right:0;background:#e06c75;color:#fff;padding:8px 12px;font-family:monospace;font-size:13px;z-index:9999">JS error: ' + e.message + ' (' + e.filename + ':' + e.lineno + ')</div>'
+      );
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      document.body.insertAdjacentHTML('beforeend',
+        '<div style="position:fixed;top:0;left:0;right:0;background:#e06c75;color:#fff;padding:8px 12px;font-family:monospace;font-size:13px;z-index:9999">Unhandled rejection: ' + e.reason + '</div>'
+      );
+    });
+  </script>
+</body>
+</html>

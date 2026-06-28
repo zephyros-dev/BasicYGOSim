@@ -1,48 +1,59 @@
-# Description
+# YGOProb
 
-Yu-Gi-Oh! probability estimator for deck consistency
+Yu-Gi-Oh! deck consistency estimator using Monte Carlo simulation.
 
-## Setting up
+## Setup
 
-1. Install git
-   - Windows: Follow [the instruction](https://git-scm.com/downloads/win)
-   - Linux: If you use linux you can probably figure it out
-2. Install python with the version in `.python-version`. I recommend using uv to simplify installation. You can follow [uv installation instruction](https://docs.astral.sh/uv/getting-started/installation/) to install it into your machine. For Windows user I recommend using [winget method](https://docs.astral.sh/uv/getting-started/installation/#winget)
+1. Install [Node.js](https://nodejs.org/) and [pnpm](https://pnpm.io/installation).
+   If you use [mise](https://mise.jdx.dev/), the correct versions are pinned in `mise.toml` and will be picked up automatically.
 
-## Usage
-
-### Probability calculator
-
-1. Prepare a deck file. You can check the `sample.toml` file that I've created for how to create the deck file
-2. Open a terminal and run the below command for calculating the probablity of the deck:
+2. Install dependencies:
 
    ```bash
-   uv run main.py probability --deck sample.toml
+   pnpm install
    ```
 
-3. The results should look like this:
+## Web UI
 
-   ```bash
-   None-engine card ratio is: 11/44
-   Probability of success main deck with hand of 5: 83.98%
-   Probability of success side deck with hand of 6: 86.83%
-   ```
+Start the dev server:
 
-### Updating the program
+```bash
+pnpm dev
+```
 
-1. To get new release of the program, you can run the following command inside the folder:
+Then open the URL shown in the terminal (usually `http://localhost:5173`).
 
-   ```bash
-   git pull
-   ```
+### Interface
+
+| Area | Description |
+| --- | --- |
+| Toolbar | **Expand** resolves hand conditions without simulating. **▶ Run** runs the simulation. **Trials** controls accuracy vs. speed. |
+| Sidebar | Create, load, save, delete, export and import decks. |
+| Editor (left pane) | Edit your deck YAML. |
+| Results (right pane) | Hit rates appear here after Run or Expand. |
+
+## CLI
+
+```bash
+# Run simulation
+pnpm ygoprob probability -d deck.yaml
+
+# Show expanded hand conditions (no simulation)
+pnpm ygoprob expand -d deck.yaml
+
+# Options
+pnpm ygoprob --help
+```
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `-d`, `--deck` | *(required)* | Path to the deck YAML file |
+| `-n`, `--trials` | `100000` | Number of simulation trials |
+
+## Deck format
+
+Decks are written in YAML. See `sample.yaml` for a fully annotated example covering the deck list, category definitions, and scenario hand conditions.
 
 ## Notes
 
-- I forked this from [flipflipshift](https://github.com/flipflipshift/BasicYGOSim), many thanks for the inspiration
-- I decided to fork this repository for my personal usage. The original scripts, while convenient by allowing running on browsers, make it hard to maintain multiple deck list, so I forked it and make it work on local machine instead
-
-## TODO
-
-- Side deck field
-- Side deck replace possiblities
-- Category for reference (not for calculation)
+- Inspired by [flipflipshift/BasicYGOSim](https://github.com/flipflipshift/BasicYGOSim)

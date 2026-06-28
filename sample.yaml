@@ -1,34 +1,65 @@
-# The file format is yaml, you can use # before each line for comment, or quick
-# trial of each entry
+# ── Website usage ──────────────────────────────────────────────────────────
+#
+# Toolbar (top bar)
+#   [Theme]   Toggle between Dark Magician (dark) and Blue-Eyes (light) theme
+#   Trials    Number of Monte Carlo iterations (higher = more accurate, slower)
+#   [Expand]  Resolve and print all hand conditions without running simulation
+#   [▶ Run]   Run the simulation and display hit rates in the results panel
+#
+# Sidebar (left panel)
+#   [+ New]   Open a blank deck pre-filled with a template
+#   [Sample]  Load the built-in sample deck (this file)
+#   [Export]  Download all saved decks as a .zip of .yaml files
+#   [Import]  Upload a .zip to restore previously exported decks
+#   [Delete]  Permanently delete the currently selected deck
+#   Deck list Click any saved deck to load it into the editor
+#
+# Editor (left pane)
+#   Edit your deck YAML directly. The format is documented in the comments
+#   at the top of this file. Changes are not saved until you click Save.
+#
+# Deck name bar
+#   Edit the deck name in the text field, then click [Save] to persist it
+#   (along with the current editor content) to browser local storage.
+#
+# Results (right pane)
+#   After Run or Expand, output appears here.
+#   - Each scenario is shown with its per-category hit rates.
+#   - [total] is the aggregate chance of hitting any category.
+#   - [no-dup] is the % of successful hands that contain no duplicate
+#     non-NOPT card (a measure of hand quality / brick avoidance).
+#   - Going 2nd scenarios show Turn 1 (5-card) and Turn 2 (+1 draw)
+#     separately; Turn 2 only counts when Turn 1 missed.
+#
+
+# The file format is yaml, you can use # before each line for comment
 deck:
-  # - The main field is for the list of cards that are used in your deck
-  # - The format of each entry is as following:
+  # - The deck list. The format of each entry is as following:
   #   <card-name> <amount> <group>...
   # - card name cannot use space
   #   .e.g: Ash 2 Fodder NE
   #    - In this case Ash is card name, 2 is the amount in the deck
-  # - Fodder means it belongs to Fodder group (which mean it can be used
-  #   as tribute fodder for ritual summon.
+  # - Fodder means it belongs to Fodder group (which mean it can be
+  #   used as tribute fodder for ritual summon.
   # - You can use whichever group you need for your deck combo.
   #   .e.g: Tri-Brigade Kerass requires discard a tri-type,
   #   so you can use a tri-type group for it
-  # - NE means non-engine group
-  # - You can also write other card name into the group, in case the card
-  #   is used as a searcher another card in deck
-  #   .e.g: ROTA 1 Raye
+  # - You can also write other card name into the group, in case the
+  #   card is used as a searcher another card in deck .e.g: ROTA 1 Raye
   # - These following draw cards are supported calculating consistency:
-  #   - Desires (This one is broken rn, may fix it once I got some time...)
+  #   - Desires (This one is broken, WIP)
   #   - Prosperity
   #   - Extravagance
   #   - Upstart (For Chicken Game you can add it as another Upstart)
   #   - Duality
   # - There are 2 special groups
-  #   - NE (none-engine). You can add cards that are non-engine to this group
-  #     to see it amounts being printed at the results. I used this to check
-  #     how many non-engine slots can I afford without losing consistency
-  #   - NOPT: Cards that are in this group are not counted toward duplicated hands
-  #     (.e.g: Sky Striker Engage, Infinite Impermanence) since you can use multiple
-  #     in a single turn
+  #   - NE (none-engine). You can add cards that are non-engine to
+  #     this group to see it amounts being printed at the results. I
+  #     used this to check how many non-engine slots can I afford
+  #     without losing consistency
+  #   - NOPT: Cards that are in this group are not counted toward
+  #     duplicated hands (.e.g: Sky Striker Engage, Infinite
+  #     Impermanence) since you can use multiple in a single turn
   main:
     - Martha 3 Name
     - Elis 3 Name
@@ -40,7 +71,7 @@ deck:
     - Betrayal 3
     - Returnia 1
     - Vadis 1
-    - Shifter 1 NE HT
+    - Shifter 1 NE HT # Handtrap group
     - Ash 3 NE HT
     - Nib 1 NE HT
     - Thrust 1 NE
@@ -58,35 +89,36 @@ deck:
     - Droll 2 HT
     - D-fissure 1
     - Purulia 3 HT
-    - Duster 1 BB
+    - Duster 1 BB # Board breaker group, only used for going 2nd
     - Evenly 3 BB NOPT
 
-# - Category are collection of hands, where you can put here to later be used
-#   in hand section as reference
-# - List your acceptable combinations of cards in hand using named categories.
-# - Each key under hand is a category name (e.g. all, standard, anti-droll).
+# - Category are collection of hands, where you can put here to later
+#   be used in hand section as reference
+# - List your acceptable combinations of cards in hand using named categories
+# - Each key under hand is a category name (e.g. standard, anti-droll)
 # - Probabilities are shown per category, then an aggregate (any category matched).
-# - Each entry represents the hand combination, and
-#   has the following syntax:
-#   < amount > < + or - or = > < card-name > < AND/OR > < category > < COMB(category) > ...
+# - Each entry represents the hand combination, the syntax:
+#   <amount> <+/-/=> <card-name/group/category> <AND/OR> < COMB(category, category)> ...
 # - .e.g: 2 + A AND 1 - B AND 0 = C
 #    means `2 or more of A, 1 or fewer of B, exactly 0 of C`
-# - + or = when used with a group that is larger than 2 (for example 2 + HT), it will consider
-#   the success as having 2 or more different card in that group (.e.g: 2 Ash is not success,
-#   1 Ash 1 Belle is considered success, 2 Imperm is considered success since it is NOPT)
+# - + or = when used with a group larger than 2 (for example 2 + HT),
+#   it will consider the success as having 2 or more different card in
+#   that group (.e.g: 2 Ash is not success, 1 Ash 1 Belle is success,
+#   2 Imperm is success since it is NOPT)
 # - if the amount is 1 or more, you can skip it.
 #   .e.g: `Ichiki AND Elis` is equivalent to `1 + Ichiki AND 1 + Elis`
-# - COMB(cat-a, cat-b) generates every unique pair of hands from two categories.
-#   Conditions shared between the two picked hands are merged into one.
-#   .e.g: COMB(0-ht, 0-ht) means "two distinct 0-ht hand combinations"
-#   You can pass more than two categories: COMB(0-ht, 0-ht, 0-ht)
-# - Grouping for OR can be made using bracket ()
+# - COMB(cat-a, cat-b) generates every unique pair of hands from two
+#   categories. Conditions shared between the two picked hands are
+#   merged into one. .e.g: COMB(0-ht, 0-ht) means "two distinct 0-ht
+#   hand combinations". You can pass more than two categories like
+#   COMB(0-ht, 0-ht, 0-ht)
+# - Grouping can be made using bracket ()
 category:
   1cc:
     - Martha
     - Pax
     - Betrayal
-  sakitama-cat:
+  sakitama-combo:
     - Sakitama AND Exo
     - Sakitama AND Fuwalos
   weak:
@@ -120,19 +152,19 @@ category:
 hand:
   # These are the base cases, for game 1 when you have no side deck yet
   game_1_1st:
-    hand: # By default, each hand will be considered going 1st, with 5 card hand
+    hand: # By default hand is going 1st, with 5 card
       turn_1:
         playable:
-          - 0-ht
-          - sakitama-cat
+          - engine-combo
+          - sakitama-combo
         optimal:
-          - (engine-combo OR sakitama-cat) AND (Thrust OR Called-by)
-          - (COMB(1cc, 2cc) OR COMB(1cc, sakitama-cat) OR COMB(1cc, weak) OR COMB(1cc, 1cc)) AND 2 + NE
-        droll:
+          - (engine-combo OR sakitama-combo) AND (Thrust OR Called-by)
+          - (COMB(1cc, 2cc) OR COMB(1cc, sakitama-combo) OR COMB(1cc, weak) OR COMB(1cc, 1cc)) AND 2 + NE
+        vs-droll:
           - droll-cat
-        nib:
+        vs-nib:
           - nib-cat
-        charmies:
+        vs-charmies:
           - charmies-cat
   game_1_2nd:
     # When going 2nd, your probabilities can now contain turn_1 and turn_2 hand separately.
@@ -142,10 +174,10 @@ hand:
     hand:
       turn_1:
         playable:
-          - 0-ht
-          - sakitama-cat
+          - engine-combo
+          - sakitama-combo
         optimal:
-          - 0-ht AND ((Fuwalos AND HT) OR 2 + HT) # For example you only want to calculate chance of drawing Fuwalos + HT turn 1
+          - engine-combo AND ((Fuwalos AND HT) OR 2 + HT) # For example you only want to calculate chance of drawing Fuwalos + HT turn 1
       turn_2:
         playable:
           - 1-ht
@@ -174,14 +206,17 @@ hand:
         droll:
           - Martha AND Carpedivem
           - Elis AND Exo AND Carpedivem
-          - 0-ht AND (D-fissure OR (Cross-out AND 1 - Droll))
+          - engine-combo AND (D-fissure OR (Cross-out AND 1 - Droll))
           - droll-cat
         nib:
           - Martha AND Carpedivem
           - Betrayal AND Carpedivem
           - nib-cat
-  # This hand is example for calculating the chance of drawing Fuwalos on
-  # turn 1 going 2nd, not turn 2
+        anti-bb:
+          - engine-combo AND Solemn
+  # This scenario is example for calculating the chance of drawing
+  # Fuwalos on turn 1 going 2nd, and if that fails we try to see the
+  # chance of drawing BB on turn 2
   side_going_2nd_bb:
     going_2nd: true
     side:
@@ -195,10 +230,10 @@ hand:
     hand:
       turn_1:
         optimal:
-          - 0-ht AND (1 + BB OR Fuwalos)
+          - engine-combo AND (2 + BB OR Fuwalos)
       turn_2:
         optimal:
-          - 0-ht AND 1 + BB
+          - engine-combo AND 2 + BB
   side_going_2nd_ht:
     going_2nd: true
     side:
@@ -208,9 +243,9 @@ hand:
         - Talent 1
         - Sakitama 1
     hand:
-      # In this case, even though we go 2nd, assuming that we will just auto-lose
-      # if we cannot handtrap our opponent, we only care about getting HT on the
-      # turn_1 hand
+      # In this case, even though we go 2nd, assuming that we will
+      # just auto-lose if we cannot handtrap our opponent, we only
+      # care about getting HT on the turn_1 hand
       turn_1:
         with_ht:
-          - 0-ht AND 2 + HT
+          - engine-combo AND 2 + HT
