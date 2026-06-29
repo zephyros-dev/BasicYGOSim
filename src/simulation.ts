@@ -43,26 +43,53 @@ function countGroup(tag: string, hand: string[], cardHash: CardHash): number {
   return num;
 }
 
+function countTagInHand(tag: string, hand: string[], cardHash: CardHash): number {
+  let n = 0;
+  for (const c of hand) {
+    if (c !== 'blank' && (cardHash[c] ?? []).includes(tag)) n++;
+  }
+  return n;
+}
+
 function isValid(
   combo: string[],
   hand: string[],
   condition: [string, number, string][],
   cardHash: CardHash,
+  deckCardCounts: Record<string, number>,
+  deckTagCounts: Record<string, number>,
 ): boolean {
   for (const [card, minimum, sign] of condition) {
-    const num = card in cardHash
-      ? combo.reduce((n, c) => n + (c === card ? 1 : 0), 0)
-      : countGroup(card, hand, cardHash);
-    if (num < minimum && sign !== '-') return false;
-    if (num > minimum && sign !== '+') return false;
+    let num: number;
+    if (sign.length === 2 && sign[0] === 'd') {
+      // DECK() condition: count copies remaining in deck (total - in hand)
+      const baseSign = sign[1];
+      num = card in cardHash
+        ? (deckCardCounts[card] ?? 0) - hand.filter(c => c === card).length
+        : (deckTagCounts[card] ?? 0) - countTagInHand(card, hand, cardHash);
+      if (num < minimum && baseSign !== '-') return false;
+      if (num > minimum && baseSign !== '+') return false;
+    } else {
+      num = card in cardHash
+        ? combo.reduce((n, c) => n + (c === card ? 1 : 0), 0)
+        : countGroup(card, hand, cardHash);
+      if (num < minimum && sign !== '-') return false;
+      if (num > minimum && sign !== '+') return false;
+    }
   }
   return true;
 }
 
-function isOneValid(hand: string[], possibilities: Possibilities, cardHash: CardHash): boolean {
+function isOneValid(
+  hand: string[],
+  possibilities: Possibilities,
+  cardHash: CardHash,
+  deckCardCounts: Record<string, number>,
+  deckTagCounts: Record<string, number>,
+): boolean {
   for (const combo of handCombinations(hand, cardHash)) {
     for (const p of possibilities) {
-      if (isValid(combo, hand, p, cardHash)) return true;
+      if (isValid(combo, hand, p, cardHash, deckCardCounts, deckTagCounts)) return true;
     }
   }
   return false;
@@ -78,38 +105,43 @@ function isOneValidDraw(
   canProsperity: boolean,
   canDuality: boolean,
   cardHash: CardHash,
+  deckCardCounts: Record<string, number>,
+  deckTagCounts: Record<string, number>,
 ): boolean {
-  if (isOneValid(hand, possibilities, cardHash)) return true;
+  if (isOneValid(hand, possibilities, cardHash, deckCardCounts, deckTagCounts)) return true;
 
-  if (canDesires && hand.includes('Desires') && extras.length >= 2) {
-    const th = [...hand]; const te = [...extras];
-    th.push(te.pop()!); th.push(te.pop()!);
-    if (isOneValidDraw(th, te, possibilities, false, false, canUpstart, false, canDuality, cardHash)) return true;
-  }
+  // Order: Extravagance > Desires > Upstart > Duality > Prosperity
   if (canExtrav && hand.includes('Extravagance') && extras.length >= 2) {
     const th = [...hand]; const te = [...extras];
     th.push(te.pop()!); th.push(te.pop()!);
-    if (isOneValidDraw(th, te, possibilities, false, false, false, false, canDuality, cardHash)) return true;
+    if (isOneValidDraw(th, te, possibilities, false, false, false, false, canDuality, cardHash, deckCardCounts, deckTagCounts)) return true;
   }
-  if (canProsperity && hand.includes('Prosperity') && extras.length >= 6) {
-    for (let i = 0; i < 6; i++) {
-      const th = [...hand]; const te = [...extras];
-      th.push(te[i]); te.splice(0, 6);
-      if (isOneValidDraw(th, te, possibilities, false, false, false, false, canDuality, cardHash)) return true;
-    }
+  // Pot of Desires: banish 10 face-down from deck, then draw 2
+  if (canDesires && hand.includes('Desires') && extras.length >= 12) {
+    const th = [...hand]; const te = [...extras];
+    for (let i = 0; i < 10; i++) te.pop(); // banish top 10
+    th.push(te.pop()!); th.push(te.pop()!); // draw 2
+    if (isOneValidDraw(th, te, possibilities, false, false, canUpstart, false, canDuality, cardHash, deckCardCounts, deckTagCounts)) return true;
   }
   if (canUpstart && hand.includes('Upstart') && extras.length >= 1) {
     const th = [...hand]; const te = [...extras];
     th.push(te.pop()!);
     const idx = th.indexOf('Upstart');
     if (idx >= 0) th.splice(idx, 1);
-    if (isOneValidDraw(th, te, possibilities, false, canDesires, canUpstart, false, canDuality, cardHash)) return true;
+    if (isOneValidDraw(th, te, possibilities, false, canDesires, canUpstart, false, canDuality, cardHash, deckCardCounts, deckTagCounts)) return true;
   }
   if (canDuality && hand.includes('Duality') && extras.length >= 3) {
     for (let i = 0; i < 3; i++) {
       const th = [...hand]; const te = [...extras];
       th.push(te[i]); te.splice(0, 3);
-      if (isOneValidDraw(th, te, possibilities, false, canDesires, canUpstart, canProsperity, false, cardHash)) return true;
+      if (isOneValidDraw(th, te, possibilities, false, canDesires, canUpstart, canProsperity, false, cardHash, deckCardCounts, deckTagCounts)) return true;
+    }
+  }
+  if (canProsperity && hand.includes('Prosperity') && extras.length >= 6) {
+    for (let i = 0; i < 6; i++) {
+      const th = [...hand]; const te = [...extras];
+      th.push(te[i]); te.splice(0, 6);
+      if (isOneValidDraw(th, te, possibilities, false, false, false, false, canDuality, cardHash, deckCardCounts, deckTagCounts)) return true;
     }
   }
   return false;
@@ -128,6 +160,17 @@ export function runChunk(
   const deck = [...deckList];
   const t1Keys = Object.keys(turn1Cats);
   const t2Keys = Object.keys(turn2Cats);
+
+  // Precompute deck composition for DECK() conditions
+  const deckCardCounts: Record<string, number> = {};
+  const deckTagCounts: Record<string, number> = {};
+  for (const c of deckList) {
+    deckCardCounts[c] = (deckCardCounts[c] ?? 0) + 1;
+    const labels = cardHash[c] ?? [c];
+    for (let i = 1; i < labels.length; i++) {
+      deckTagCounts[labels[i]] = (deckTagCounts[labels[i]] ?? 0) + 1;
+    }
+  }
   const turn1Counters: Record<string, number> = Object.fromEntries(t1Keys.map(k => [k, 0]));
   const turn2Counters: Record<string, number> = Object.fromEntries(t2Keys.map(k => [k, 0]));
   let aggregate = 0;
@@ -153,7 +196,7 @@ export function runChunk(
     const t1Draw = !going2nd;
 
     for (const cat of t1Keys) {
-      if (isOneValidDraw(hand, extras, turn1Cats[cat], t1Draw, t1Draw, t1Draw, t1Draw, t1Draw, cardHash)) {
+      if (isOneValidDraw(hand, extras, turn1Cats[cat], t1Draw, t1Draw, t1Draw, t1Draw, t1Draw, cardHash, deckCardCounts, deckTagCounts)) {
         turn1Counters[cat]++;
         anyTurn1 = true;
       }
@@ -170,7 +213,7 @@ export function runChunk(
         hand6 = [...hand];
       }
       for (const cat of t2Keys) {
-        if (isOneValidDraw(hand6, extras, turn2Cats[cat], true, true, true, true, true, cardHash)) {
+        if (isOneValidDraw(hand6, extras, turn2Cats[cat], true, true, true, true, true, cardHash, deckCardCounts, deckTagCounts)) {
           turn2Counters[cat]++;
           anyTurn2 = true;
         }

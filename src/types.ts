@@ -30,7 +30,18 @@ export interface AstAnd {
   parts: AstNode[];
 }
 
-export type AstNode = AstCond | AstCatRef | AstComb | AstOr | AstAnd;
+export interface AstDeckCond {
+  card: string;
+  minimum: number;
+  sign: Sign;
+}
+
+export interface AstDeck {
+  kind: 'deck';
+  conds: AstDeckCond[];
+}
+
+export type AstNode = AstCond | AstCatRef | AstComb | AstOr | AstAnd | AstDeck;
 
 export type CardHash = Record<string, string[]>; // card name → [name, ...tags]
 

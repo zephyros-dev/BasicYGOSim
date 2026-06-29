@@ -1,6 +1,6 @@
-import type { AstNode, AstCond, AstCatRef, AstComb, AstOr, AstAnd, Sign } from './types';
+import type { AstNode, AstCond, AstCatRef, AstComb, AstOr, AstAnd, AstDeck, AstDeckCond, Sign } from './types';
 
-type TK = 'WORD' | 'AND' | 'OR' | 'COMB' | 'LPAREN' | 'RPAREN' | 'COMMA' | 'EOF';
+type TK = 'WORD' | 'AND' | 'OR' | 'COMB' | 'DECK' | 'LPAREN' | 'RPAREN' | 'COMMA' | 'EOF';
 
 interface Tok {
   kind: TK;
@@ -11,6 +11,7 @@ const KW: Record<string, TK> = {
   AND: 'AND',
   OR: 'OR',
   COMB: 'COMB',
+  DECK: 'DECK',
   '(': 'LPAREN',
   ')': 'RPAREN',
   ',': 'COMMA',
@@ -67,6 +68,27 @@ function parseTokens(
     return node;
   }
 
+  function parseDeckCond(): AstDeckCond {
+    const w = peek().val;
+    if (/^\d+$/.test(w)) {
+      consume();
+      const signVal = consume('WORD').val;
+      if (!['=', '+', '-'].includes(signVal)) {
+        throw new Error(`[${catName}] Expected sign after count in DECK(): ${line}`);
+      }
+      const card = consume('WORD').val;
+      if (!allCats.has(card)) {
+        throw new Error(`[${catName}] Unknown card/group '${card}' in DECK(): ${line}`);
+      }
+      return { card, minimum: parseInt(w), sign: signVal as Sign };
+    }
+    const card = consume('WORD').val;
+    if (!allCats.has(card)) {
+      throw new Error(`[${catName}] Unknown card/group '${card}' in DECK(): ${line}`);
+    }
+    return { card, minimum: 1, sign: '+' };
+  }
+
   function parsePrimary(): AstNode {
     const k = peek().kind;
     if (k === 'LPAREN') {
@@ -90,6 +112,18 @@ function parseTokens(
         }
       }
       const node: AstComb = { kind: 'comb', cats };
+      return node;
+    }
+    if (k === 'DECK') {
+      consume();
+      consume('LPAREN');
+      const conds: AstDeckCond[] = [parseDeckCond()];
+      while (peek().kind === 'COMMA') {
+        consume();
+        conds.push(parseDeckCond());
+      }
+      consume('RPAREN');
+      const node: AstDeck = { kind: 'deck', conds };
       return node;
     }
     const w = consume('WORD').val;

@@ -79,7 +79,7 @@ export async function runSimulation(
 
   if (deckMain.includes('Prosperity') || deckMain.includes('Extravagance')) numExtras += 6;
   if (deckMain.includes('Duality')) numExtras += 3;
-  if (deckMain.includes('Desires')) numExtras += 2;
+  if (deckMain.includes('Desires')) numExtras += 12; // banish 10, draw 2
 
   const refSection = deckFile.category ?? {};
   const categoryNames = new Set(Object.keys(refSection));

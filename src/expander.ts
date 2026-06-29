@@ -22,6 +22,7 @@ export function hasHandCatRef(node: AstNode, categoryNames: Set<string>): boolea
     case 'and':     return node.parts.some(p => hasHandCatRef(p, categoryNames));
     case 'or':      return node.alts.some(a => hasHandCatRef(a, categoryNames));
     case 'comb':    return true;
+    case 'deck':
     default:        return false;
   }
 }
@@ -77,5 +78,8 @@ export function expand(
       }
       return result;
     }
+
+    case 'deck':
+      return [node.conds.map(c => [c.card, c.minimum, 'd' + c.sign] as CondTuple)];
   }
 }

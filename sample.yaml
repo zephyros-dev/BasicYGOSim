@@ -86,12 +86,13 @@ deck:
   #   so you can use a tri-type group for it
   # - You can also write other card name into the group, in case the
   #   card is used as a searcher another card in deck .e.g: ROTA 1 Raye
-  # - These following draw cards are supported calculating consistency:
-  #   - Desires (This one is broken, WIP)
-  #   - Prosperity
+  # - These following draw cards are supported for consistency calculation,
+  #   and will resolve in the following order:
   #   - Extravagance
+  #   - Desires (banishes 10 face-down, then draws 2)
   #   - Upstart (For Chicken Game you can add it as another Upstart)
   #   - Duality
+  #   - Prosperity
   # - There are 2 special groups
   #   - NE (none-engine). You can add cards that are non-engine to
   #     this group to see it amounts being printed at the results. I
@@ -147,11 +148,17 @@ deck:
 #   2 Imperm is success since it is NOPT)
 # - if the amount is 1 or more, you can skip it.
 #   .e.g: `Ichiki AND Elis` is equivalent to `1 + Ichiki AND 1 + Elis`
-# - COMB(cat-a, cat-b) generates every unique pair of hands from two
+# - COMB(cat-a, cat-b, ...) generates every unique pair of hands from two
 #   categories. Conditions shared between the two picked hands are
 #   merged into one. .e.g: COMB(0-ht, 0-ht) means "two distinct 0-ht
 #   hand combinations". You can pass more than two categories like
 #   COMB(0-ht, 0-ht, 0-ht)
+# - DECK(card/group, ...) checks that a card/group remains in the deck (not drawn
+#   to hand). Accepts the same amount+sign syntax as hand conditions.
+#   .e.g: DECK(Martha) means "at least 1 Martha is still in the deck"
+#         DECK(2 + Name, Ichiki) means "2+ Name-group AND Ichiki in deck"
+#   Useful for checking that a card is still in the deck after using
+#   draw card or check if Pot Of Desires has banish it
 # - Grouping can be made using bracket ()
 category:
   1cc:
